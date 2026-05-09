@@ -838,30 +838,19 @@ function saveBodyEntry() {
 // ─────────────────────────────────────────────────────────────────
 // PLAN SCREEN
 // ─────────────────────────────────────────────────────────────────
-const INSIGHTS = [
-  {t:'r', icon:'⚠️', en:{title:'Weekend drop-off',body:'S/D show the most failures across all 6 weeks. Plan your meals on Saturday & Sunday in advance to break the pattern.'},
-   es:{title:'Caída fin de semana',body:'S/D tienen más fallos en las 6 semanas. Planifica tus comidas los sábados y domingos con antelación.'}},
-  {t:'g', icon:'✅', en:{title:'Strong: sweets avoidance',body:'Near-perfect across 6 weeks. Great foundation — this habit is locked in and protecting your fat loss.'},
-   es:{title:'Fuerte: sin dulces',body:'Casi perfecto en 6 semanas. Gran base — este hábito está afianzado y protege tu pérdida de grasa.'}},
-  {t:'a', icon:'⚡', en:{title:'Underfeeding on run days',body:'W4 stomach cramps + cravings were linked to too-low calories after long runs. Add 250 kcal on running days (Mon, Thu, Sun).'},
-   es:{title:'Poco combustible en días carrera',body:'Los calambres de W4 se debieron a pocas calorías tras carreras largas. Añade 250 kcal los días de carrera (Lun, Jue, Dom).'}},
-  {t:'r', icon:'😴', en:{title:'Sleep ~50% pass rate',body:'Poor sleep raises ghrelin (hunger hormone) and cortisol, both of which stall fat loss. The phone-off habit added in W6 is exactly right.'},
-   es:{title:'Sueño ~50% cumplimiento',body:'El mal sueño eleva la grelina y el cortisol, frenando la pérdida de grasa. El hábito del móvil de W6 es exactamente lo correcto.'}},
-  {t:'a', icon:'⚖️', en:{title:'Weight 86.5→87.7 kg (W3→W6)',body:'Slight upward drift over 5 weeks — likely weekend calorie spikes. Fix weekends first and re-weigh in 2 weeks.'},
-   es:{title:'Peso 86.5→87.7 kg (W3→W6)',body:'Tendencia ligera al alza en 5 semanas — probablemente excesos del fin de semana. Primero arregla los fines de semana y pésate en 2 semanas.'}},
-];
+const INSIGHTS = [];
 
 const QP = {
   en:[
     'What should my calorie targets be on gym vs running days to lose fat without losing muscle?',
-    'Create a 7-day meal plan for fat loss at 87.7 kg with 25km/week running and 3x weight training.',
+    'Create a 7-day meal plan for fat loss based on my calorie and protein targets.',
     'My weakest habit is sleep — give me 5 practical tips to fix it given my training schedule.',
-    'Design a progressive 8-week running plan building from 25km/week toward a 10K race.',
+    'Design a progressive 8-week running plan building toward a 10K race.',
     'Based on my data, what is the single biggest change I should make next week?',
   ],
   es:[
     '¿Cuáles deben ser mis calorías en días de gym vs carrera para perder grasa sin perder músculo?',
-    'Crea un plan de comidas de 7 días para perder grasa a 87.7 kg con 25km/semana y 3 días de pesas.',
+    'Crea un plan de comidas de 7 días para perder grasa según mis objetivos de calorías y proteínas.',
     'Mi hábito más débil es el sueño — dame 5 consejos prácticos dado mi horario de entreno.',
     'Diseña un plan de carrera progresivo de 8 semanas hacia una carrera de 10K.',
     'Con mis datos, ¿cuál es el cambio más importante que debo hacer la próxima semana?',
@@ -907,14 +896,9 @@ async function askClaude() {
 
   const system = `You are a fitness coach AI embedded in LeanTracker, a personal habit tracking app.
 
-USER DATA (${wn} weeks tracked, W1 = 30 Mar 2026):
+USER DATA (${wn} weeks tracked):
 - Current weight: ${latestW ? latestW.w + ' kg' : 'not yet logged'}. Goal: ${settings.goalWeight} kg.
-- Calorie target: ${settings.calMin}–${settings.calMax} kcal/day (+ 250 on run days)
-- Training: ~25 km running/week + 3× weight training (Chest, Back, Legs)
-- Best habits: sweets avoidance (near-perfect all 6 weeks), alcohol (mostly good)
-- Worst habits: sleep (~50% pass rate), calories (spikes 2500–3000 on some days), weekends (most failures on Sat/Sun)
-- W3 weight 86.5 kg → W6 weight 87.7 kg (slight upward drift)
-- W4 note: stomach pain + cravings — likely from undereating on high-output run days
+- Calorie target: ${settings.calMin}–${settings.calMax} kcal/day
 
 Respond in ${lang === 'en' ? 'English' : 'Spanish'}. Be specific, practical, and concise (under 280 words). Use **bold** for key numbers or actions.`;
 
