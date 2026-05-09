@@ -495,61 +495,6 @@ function getDay(dk) {
 function seedHistory() {
   if (DB !== null) return;
   DB = {};
-
-  const weeks = [
-    // W1: 30 Mar – 5 Apr
-    { dates:['2026-03-30','2026-03-31','2026-04-01','2026-04-02','2026-04-03','2026-04-04','2026-04-05'],
-      h:[[1,0.5,0.5,null,0.5,0.5,1,null],[1,0.5,0.5,null,0.5,1,1,null],[1,0.5,0.5,null,0.5,1,1,null],
-         [1,0.5,1,null,0.5,1,1,null],[0.5,0.5,0.5,null,0.5,0.5,0.5,null],[1,1,0.5,null,0.5,0.5,1,null],[0,0.5,0.5,null,null,0,0.5,null]],
-      cal:[1800,1800,null,null,null,null,null],
-      tr:['Mixed – visit','—','—','—','Visit – small wine','—','—'], wt:[null,null,null,null,null,null,null] },
-
-    // W2: 6 Apr – 12 Apr
-    { dates:['2026-04-06','2026-04-07','2026-04-08','2026-04-09','2026-04-10','2026-04-11','2026-04-12'],
-      h:[[1,1,0.5,null,0,1,0.5,null],[1,1,1,null,1,1,1,null],[1,1,1,null,1,1,0,null],
-         [1,1,1,null,1,1,1,null],[1,1,0.5,null,1,1,1,null],[1,0.5,0.5,null,0.5,1,1,null],[1,0.5,1,null,1,1,1,null]],
-      cal:[null,1700,null,null,2000,null,null],
-      tr:['Rest/Recover','Chest','Legs','Running','Rest','Rest/Walk','Race'], wt:[null,null,null,null,null,null,null] },
-
-    // W3: 13 Apr – 19 Apr  (weight 86.5 on Mon)
-    { dates:['2026-04-13','2026-04-14','2026-04-15','2026-04-16','2026-04-17','2026-04-18','2026-04-19'],
-      h:[[1,1,0.5,null,1,1,0,null],[1,1,0.5,null,1,1,1,null],[1,1,0.5,null,1,1,0.5,null],
-         [1,1,1,null,1,1,1,null],[0,1,0,null,0,0,0,null],[0,1,0,null,0,0,1,null],[0,1,0,null,0,0,0,null]],
-      cal:[2500,1800,1250,1800,null,null,null],
-      tr:['Rest (Back)','Chest (~sick)','Back','Legs (low energy)','—','—','—'], wt:[86.5,null,null,null,null,null,null] },
-
-    // W4: 20 Apr – 26 Apr
-    { dates:['2026-04-20','2026-04-21','2026-04-22','2026-04-23','2026-04-24','2026-04-25','2026-04-26'],
-      h:[[1,1,0.5,null,0,0,1,null],[1,1,1,null,0,1,1,null],[1,1,0.5,null,0,1,0.5,null],
-         [1,1,1,null,0,1,0.5,null],[1,1,0.5,null,1,1,1,null],[1,1,0.5,null,1,1,1,null],[1,1,1,null,1,1,1,null]],
-      cal:[null,2600,3000,null,null,null,null],
-      tr:['Rest (stomach pain)','Running','Chest (Rest)','Chest','Legs + Running 1000kcal','Back + Cycling 900kcal','Running'], wt:[null,null,null,null,null,null,null] },
-
-    // W5: 27 Apr – 3 May
-    { dates:['2026-04-27','2026-04-28','2026-04-29','2026-04-30','2026-05-01','2026-05-02','2026-05-03'],
-      h:[[1,1,1,null,1,1,1,null],[1,1,1,null,1,1,1,null],[1,1,1,null,1,1,0.5,null],
-         [0,1,0.5,null,0.5,1,0,null],[1,1,0.5,null,0.5,1,1,null],[0.5,1,0.5,null,0.5,1,0.5,null],[0.5,1,0.5,null,1,1,0.5,null]],
-      cal:[null,null,null,2600,2600,2600,2000],
-      tr:['Legs + 7K (great!)','Chest','Back + 7K','5K + Legs','Run 5/15K easy','Rest (6K hiking)','10K run, 7K intervals'], wt:[null,null,null,null,null,null,null] },
-
-    // W6: 4 May – 10 May  (weight 87.7 on Mon, partial week)
-    { dates:['2026-05-04','2026-05-05','2026-05-06','2026-05-07','2026-05-08','2026-05-09','2026-05-10'],
-      h:[[1,0.5,1,null,0.5,1,0.5,0],[1,1,1,null,1,0.5,1,1],[1,1,1,null,1,0.5,1,1],
-         [1,0.5,1,null,1,0.5,1,0.5],[1,0.5,1,null,0.5,0.5,1,0.5],[null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null]],
-      cal:[null,1200,null,null,2300,null,null],
-      tr:['Run easy 6-7K','Chest','Back','Legs','Rest (class morning)','—','—'], wt:[87.7,null,null,null,null,null,null] },
-  ];
-
-  weeks.forEach(wk => {
-    wk.dates.forEach((dk, i) => {
-      const h = wk.h[i];
-      DB[dk] = {
-        habits: { alcohol:h[0], dulce:h[1], agua:h[2], cal:h[3], macros:h[4], training:h[5], sleep:h[6], phone:h[7] },
-        cal: wk.cal[i], training: wk.tr[i], weight: wk.wt[i], waist: null
-      };
-    });
-  });
-
   persist();
 }
 
