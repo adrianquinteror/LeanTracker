@@ -152,7 +152,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--fb);font-size:15px
   align-items:flex-end;justify-content:center;}
 .modal-ov.open{display:flex;}
 .modal{background:var(--bg2);border-radius:22px 22px 0 0;
-  padding:18px 18px calc(18px + var(--sb));width:100%;max-height:80vh;overflow-y:auto;}
+  padding:18px 18px calc(18px + var(--sb));width:100%;max-height:85vh;overflow-y:auto;}
 .modal-h{width:36px;height:4px;background:var(--bg4);border-radius:2px;margin:0 auto 18px;}
 .modal-t{font-family:var(--fd);font-size:21px;font-weight:800;text-transform:uppercase;margin-bottom:14px;}
 .inp{background:var(--bg3);border:1px solid var(--border2);border-radius:11px;color:var(--text);
@@ -186,6 +186,46 @@ body{background:var(--bg);color:var(--text);font-family:var(--fb);font-size:15px
 .loader{display:inline-block;width:14px;height:14px;border:2px solid var(--accent-dim);
   border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:5px;}
 @keyframes spin{to{transform:rotate(360deg)}}
+
+/* USER CHIP */
+.user-chip{background:var(--bg3);border:1px solid var(--border2);border-radius:20px;
+  color:var(--text);font-size:12px;font-family:var(--fd);font-weight:700;
+  padding:4px 11px;cursor:pointer;display:flex;align-items:center;gap:5px;
+  white-space:nowrap;max-width:100px;overflow:hidden;}
+
+/* PROFILE CARDS */
+.profile-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);
+  padding:13px 15px;display:flex;align-items:center;gap:12px;cursor:pointer;
+  transition:border-color .2s;margin-bottom:9px;}
+.profile-card:active{background:var(--bg3);}
+.profile-card.active-p{border-color:rgba(200,245,66,.5);}
+.profile-avatar{width:44px;height:44px;border-radius:50%;background:var(--bg4);
+  display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;}
+.profile-info{flex:1;min-width:0;}
+.profile-name{font-family:var(--fd);font-weight:700;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.profile-sub{font-size:11px;color:var(--text2);margin-top:1px;}
+.profile-check{color:var(--accent);font-size:18px;font-weight:700;flex-shrink:0;}
+
+/* PROFILE PICKER SCREEN */
+.profile-screen{position:fixed;inset:0;background:var(--bg);z-index:500;
+  overflow-y:auto;padding:calc(50px + var(--st)) 20px calc(30px + var(--sb));
+  display:flex;flex-direction:column;}
+.profile-screen.hidden{display:none;}
+
+/* EMOJI GRID */
+.emoji-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:7px;margin-bottom:14px;}
+.emoji-opt{width:100%;aspect-ratio:1;background:var(--bg3);border:2px solid transparent;
+  border-radius:10px;font-size:22px;cursor:pointer;display:flex;align-items:center;
+  justify-content:center;transition:border-color .15s;}
+.emoji-opt.selected{border-color:var(--accent);}
+
+/* METRIC MINI CHART */
+.metric-chart{position:relative;height:100px;margin:5px 0;}
+.metric-chart svg{width:100%;height:100%;}
+
+/* DANGER BTN */
+.danger-btn{background:none;border:none;color:var(--red);font-size:18px;
+  cursor:pointer;padding:5px 8px;flex-shrink:0;line-height:1;}
 </style>
 </head>
 <body>
@@ -195,7 +235,12 @@ body{background:var(--bg);color:var(--text);font-family:var(--fb);font-size:15px
   <div class="hdr">
     <div class="hdr-row">
       <div><div class="disp hdr-title" id="hdr-today">TODAY</div><div class="hdr-sub" id="sub-today"></div></div>
-      <button class="lang-btn" onclick="toggleLang()" id="lang-btn">ES</button>
+      <div style="display:flex;gap:7px;align-items:center;">
+        <div class="user-chip" id="user-chip" onclick="showScr('settings',document.querySelectorAll('.tabbtn')[4])">
+          <span id="chip-avatar">😎</span><span id="chip-name" style="overflow:hidden;text-overflow:ellipsis;">Me</span>
+        </div>
+        <button class="lang-btn" onclick="toggleLang()" id="lang-btn">ES</button>
+      </div>
     </div>
   </div>
   <div style="height:11px"></div>
@@ -258,6 +303,22 @@ body{background:var(--bg);color:var(--text);font-family:var(--fb);font-size:15px
   </div>
   <div class="shdr"><span class="shdr-t" data-k="weight_trend"></span></div>
   <div class="card"><div class="wchart" id="wchart"></div><div style="font-size:11px;color:var(--text3);margin-top:3px;" data-k="tap_log_weight"></div></div>
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="stat-lbl" data-k="vo2max_lbl"></div>
+      <div class="stat-val" id="prog-vo2">—</div>
+      <div class="stat-sub">ml/kg/min</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-lbl" data-k="glucose_lbl"></div>
+      <div class="stat-val" id="prog-glc">—</div>
+      <div class="stat-sub">mg/dL</div>
+    </div>
+  </div>
+  <div class="shdr"><span class="shdr-t" data-k="vo2max_trend"></span></div>
+  <div class="card"><div class="metric-chart" id="vo2chart"></div><div style="font-size:11px;color:var(--text3);margin-top:3px;" data-k="tap_log_vo2"></div></div>
+  <div class="shdr"><span class="shdr-t" data-k="glucose_trend"></span></div>
+  <div class="card"><div class="metric-chart" id="glcchart"></div><div style="font-size:11px;color:var(--text3);margin-top:3px;" data-k="tap_log_glc"></div></div>
   <div class="shdr"><span class="shdr-t" data-k="weekly_compliance"></span></div>
   <div class="card" id="comp-chart"></div>
   <div class="shdr"><span class="shdr-t" data-k="progress_photos"></span></div>
@@ -292,6 +353,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--fb);font-size:15px
 <div id="scr-settings" class="scr">
   <div class="hdr"><div class="hdr-row"><div><div class="disp hdr-title" data-k="settings"></div></div><button class="lang-btn" onclick="toggleLang()" id="lang-btn2">ES</button></div></div>
   <div style="height:11px"></div>
+  <div class="shdr"><span class="shdr-t" data-k="profiles_s"></span></div>
+  <div id="profiles-list" style="margin:0 15px 6px;"></div>
+  <div style="padding:0 15px 11px;">
+    <button class="btn-ghost" onclick="openProfileCreate()"><span data-k="add_profile"></span><span class="arr">+</span></button>
+  </div>
   <div class="shdr"><span class="shdr-t" data-k="your_targets"></span></div>
   <div class="card">
     <div style="margin-bottom:11px;"><label style="font-size:11px;color:var(--text2);display:block;margin-bottom:3px;" data-k="cal_range"></label>
@@ -357,8 +423,36 @@ body{background:var(--bg);color:var(--text);font-family:var(--fb);font-size:15px
     <input class="inp" id="bm-w" type="number" step="0.1">
     <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:3px;" data-k="waist_cm"></label>
     <input class="inp" id="bm-wa" type="number" step="0.5">
+    <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:3px;" data-k="vo2max_input"></label>
+    <input class="inp" id="bm-vo2" type="number" step="0.1" min="10" max="90">
+    <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:3px;" data-k="glucose_input"></label>
+    <input class="inp" id="bm-glc" type="number" step="1" min="40" max="400">
     <button class="mbtn" onclick="saveBodyEntry()"><span data-k="save_entry"></span></button>
   </div>
+</div>
+
+<!-- PROFILE CREATE/EDIT MODAL -->
+<div class="modal-ov" id="profile-modal" onclick="if(event.target===this&&canCloseProfileModal())closeModal('profile-modal')">
+  <div class="modal">
+    <div class="modal-h"></div>
+    <div class="modal-t" id="profile-modal-title" data-k="new_profile"></div>
+    <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:3px;" data-k="your_name"></label>
+    <input class="inp" id="pm-name" type="text" maxlength="20">
+    <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:8px;" data-k="pick_avatar"></label>
+    <div class="emoji-grid" id="emoji-grid"></div>
+    <button class="mbtn" onclick="saveProfile()"><span data-k="create_btn"></span></button>
+  </div>
+</div>
+
+<!-- PROFILE PICKER SCREEN (shown when no active profile) -->
+<div id="profile-screen" class="profile-screen hidden">
+  <div style="flex:1;">
+    <div class="disp" style="font-size:38px;margin-bottom:4px;color:var(--accent);">LEAN</div>
+    <div class="disp" style="font-size:38px;margin-bottom:6px;">TRACKER</div>
+    <div style="color:var(--text2);margin-bottom:32px;font-size:14px;" data-k="profile_tagline"></div>
+    <div id="profile-list-wrap"></div>
+  </div>
+  <button class="mbtn" onclick="openProfileCreate()" id="create-profile-btn" data-k="create_profile"></button>
 </div>
 
 <script>
@@ -376,6 +470,11 @@ en:{
   weekly_compliance:'Weekly compliance %', progress_photos:'Progress photos',
   front:'Front', side:'Side', back:'Back',
   tap_log_weight:'Tap + Log body to add weight or waist measurements',
+  vo2max_lbl:'VO₂ Max', glucose_lbl:'Glucose',
+  vo2max_trend:'VO₂ Max trend', glucose_trend:'Glucose trend',
+  vo2max_input:'VO₂ Max (ml/kg/min)', glucose_input:'Glucose (mg/dL)',
+  tap_log_vo2:'Tap + Log body to record your VO₂ Max',
+  tap_log_glc:'Tap + Log body to record your glucose level',
   insights:'Your insights', ask_claude:'Ask Claude', ask_btn:'Ask Claude ↗',
   settings:'Settings', your_targets:'Your targets', cal_range:'Calorie range (kcal)',
   protein_target:'Protein target (g)', goal_weight_s:'Goal weight (kg)', save:'Save',
@@ -392,8 +491,15 @@ en:{
   no_data:'No data yet',
   training_placeholder:'e.g. Chest + 7km run',
   ask_placeholder:'Ask anything about your plan, nutrition, training...',
-  to_goal:'to goal',
-  goal_reached:'Goal reached!',
+  to_goal:'to goal', goal_reached:'Goal reached!',
+  profiles_s:'Profiles', add_profile:'Add profile',
+  create_profile:'Create profile', new_profile:'New profile',
+  your_name:'Your name', pick_avatar:'Choose avatar',
+  profile_tagline:'Track your fitness journey — your way.',
+  create_btn:'Create', active_lbl:'Active', switch_lbl:'Tap to switch',
+  delete_profile:'Delete profile',
+  only_profile_err:'Cannot delete the only profile.',
+  delete_confirm:'Delete this profile and all its data?',
 },
 es:{
   targets:'Objetivos', todays_habits:'Hábitos de hoy', training_today:'Entrenamiento',
@@ -405,6 +511,11 @@ es:{
   weekly_compliance:'% Cumplimiento semanal', progress_photos:'Fotos de progreso',
   front:'Frente', side:'Lado', back:'Espalda',
   tap_log_weight:'Toca + Registrar para añadir peso o cintura',
+  vo2max_lbl:'VO₂ Máx', glucose_lbl:'Glucosa',
+  vo2max_trend:'Tendencia VO₂ Máx', glucose_trend:'Tendencia glucosa',
+  vo2max_input:'VO₂ Máx (ml/kg/min)', glucose_input:'Glucosa (mg/dL)',
+  tap_log_vo2:'Toca + Registrar para añadir tu VO₂ Máx',
+  tap_log_glc:'Toca + Registrar para añadir tu nivel de glucosa',
   insights:'Tus insights', ask_claude:'Pregunta a Claude', ask_btn:'Preguntar ↗',
   settings:'Ajustes', your_targets:'Tus objetivos', cal_range:'Rango calorías (kcal)',
   protein_target:'Proteína objetivo (g)', goal_weight_s:'Peso meta (kg)', save:'Guardar',
@@ -421,12 +532,20 @@ es:{
   no_data:'Sin datos',
   training_placeholder:'ej. Pecho + 7km carrera',
   ask_placeholder:'Pregunta sobre tu plan, nutrición, entrenamiento...',
-  to_goal:'hasta la meta',
-  goal_reached:'¡Meta alcanzada!',
+  to_goal:'hasta la meta', goal_reached:'¡Meta alcanzada!',
+  profiles_s:'Perfiles', add_profile:'Añadir perfil',
+  create_profile:'Crear perfil', new_profile:'Nuevo perfil',
+  your_name:'Tu nombre', pick_avatar:'Elige tu avatar',
+  profile_tagline:'Sigue tu progreso fitness — a tu manera.',
+  create_btn:'Crear', active_lbl:'Activo', switch_lbl:'Toca para cambiar',
+  delete_profile:'Eliminar perfil',
+  only_profile_err:'No puedes eliminar el único perfil.',
+  delete_confirm:'¿Eliminar este perfil y todos sus datos?',
 }};
 
 const HICONS = ['🍷','🍬','💧','🔥','🥩','💪','😴','📱'];
 const HKEYS  = ['alcohol','dulce','agua','cal','macros','training','sleep','phone'];
+const AVATARS = ['😎','💪','🏃','🦾','🧠','🔥','⚡','🎯','🌟','👑','🦁','🐯','🚀','💎','🏆','🌙','🍃','❄️','🦅','🎭','🌊','🏋️','🚴','🧘'];
 
 // ─────────────────────────────────────────────────────────────────
 // DATE UTILITIES
@@ -476,16 +595,35 @@ function getWeekKeys(wn) {
 }
 
 // ─────────────────────────────────────────────────────────────────
+// PROFILE SYSTEM
+// ─────────────────────────────────────────────────────────────────
+let profiles = JSON.parse(localStorage.getItem('lt_profiles') || '[]');
+let activeProfileId = localStorage.getItem('lt_active_profile') || null;
+
+function profileKey(base) {
+  return activeProfileId ? `${base}_${activeProfileId}` : base;
+}
+
+// ─────────────────────────────────────────────────────────────────
 // DATA STORE  (key = "YYYY-MM-DD")
 // ─────────────────────────────────────────────────────────────────
-let DB = JSON.parse(localStorage.getItem('lt_db') || 'null');
-let settings = JSON.parse(localStorage.getItem('lt_settings') || '{"calMin":1800,"calMax":2000,"protein":160,"goalWeight":85}');
-let lang = localStorage.getItem('lt_lang') || 'en';
+let DB, settings, lang;
 
-function persist() { localStorage.setItem('lt_db', JSON.stringify(DB)); }
+function loadProfileData() {
+  DB       = JSON.parse(localStorage.getItem(profileKey('lt_db')) || 'null');
+  settings = JSON.parse(localStorage.getItem(profileKey('lt_settings')) || '{"calMin":1800,"calMax":2000,"protein":160,"goalWeight":85}');
+  lang     = localStorage.getItem(profileKey('lt_lang')) || 'en';
+}
+
+function persist()         { localStorage.setItem(profileKey('lt_db'),       JSON.stringify(DB)); }
+function persistSettings() { localStorage.setItem(profileKey('lt_settings'), JSON.stringify(settings)); }
+function persistLang()     { localStorage.setItem(profileKey('lt_lang'),     lang); }
 
 function getDay(dk) {
-  if (!DB[dk]) DB[dk] = {habits:{},cal:null,training:'',weight:null,waist:null};
+  if (!DB[dk]) DB[dk] = {habits:{},cal:null,training:'',weight:null,waist:null,vo2max:null,glucose:null};
+  // Back-fill missing fields on older records
+  if (DB[dk].vo2max  === undefined) DB[dk].vo2max  = null;
+  if (DB[dk].glucose === undefined) DB[dk].glucose = null;
   return DB[dk];
 }
 
@@ -532,7 +670,7 @@ function seedHistory() {
       cal:[null,null,null,2600,2600,2600,2000],
       tr:['Legs + 7K (great!)','Chest','Back + 7K','5K + Legs','Run 5/15K easy','Rest (6K hiking)','10K run, 7K intervals'], wt:[null,null,null,null,null,null,null] },
 
-    // W6: 4 May – 10 May  (weight 87.7 on Mon, partial week)
+    // W6: 4 May – 10 May  (weight 87.7 on Mon)
     { dates:['2026-05-04','2026-05-05','2026-05-06','2026-05-07','2026-05-08','2026-05-09','2026-05-10'],
       h:[[1,0.5,1,null,0.5,1,0.5,0],[1,1,1,null,1,0.5,1,1],[1,1,1,null,1,0.5,1,1],
          [1,0.5,1,null,1,0.5,1,0.5],[1,0.5,1,null,0.5,0.5,1,0.5],[null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null]],
@@ -545,12 +683,129 @@ function seedHistory() {
       const h = wk.h[i];
       DB[dk] = {
         habits: { alcohol:h[0], dulce:h[1], agua:h[2], cal:h[3], macros:h[4], training:h[5], sleep:h[6], phone:h[7] },
-        cal: wk.cal[i], training: wk.tr[i], weight: wk.wt[i], waist: null
+        cal: wk.cal[i], training: wk.tr[i], weight: wk.wt[i], waist: null, vo2max: null, glucose: null
       };
     });
   });
 
   persist();
+}
+
+// ─────────────────────────────────────────────────────────────────
+// PROFILE MANAGEMENT
+// ─────────────────────────────────────────────────────────────────
+let selectedAvatar = '😎';
+
+function createProfile(name, avatar) {
+  const id = 'p_' + Date.now();
+  profiles.push({ id, name, avatar, createdAt: new Date().toISOString() });
+  localStorage.setItem('lt_profiles', JSON.stringify(profiles));
+  switchToProfile(id);
+}
+
+function switchToProfile(id) {
+  activeProfileId = id;
+  localStorage.setItem('lt_active_profile', id);
+  loadProfileData();
+  seedHistory();
+  document.getElementById('profile-screen').classList.add('hidden');
+  applyI18n();
+  renderActive();
+  renderProfilesInSettings();
+  updateUserChip();
+}
+
+function deleteProfile(id) {
+  if (profiles.length <= 1) {
+    alert(t('only_profile_err'));
+    return;
+  }
+  if (!confirm(t('delete_confirm'))) return;
+  ['lt_db','lt_settings','lt_lang'].forEach(k => localStorage.removeItem(`${k}_${id}`));
+  profiles = profiles.filter(p => p.id !== id);
+  localStorage.setItem('lt_profiles', JSON.stringify(profiles));
+  if (activeProfileId === id) {
+    switchToProfile(profiles[0].id);
+  } else {
+    renderProfilesInSettings();
+  }
+}
+
+function openProfileCreate() {
+  selectedAvatar = '😎';
+  document.getElementById('pm-name').value = '';
+  document.getElementById('profile-modal-title').setAttribute('data-k', 'new_profile');
+  document.getElementById('profile-modal-title').textContent = t('new_profile');
+  renderEmojiGrid();
+  openModal('profile-modal');
+}
+
+function renderEmojiGrid() {
+  document.getElementById('emoji-grid').innerHTML = AVATARS.map(e =>
+    `<div class="emoji-opt${e === selectedAvatar ? ' selected' : ''}" onclick="selectAvatar('${e}')">${e}</div>`
+  ).join('');
+}
+
+function selectAvatar(emoji) {
+  selectedAvatar = emoji;
+  renderEmojiGrid();
+}
+
+function saveProfile() {
+  const name = document.getElementById('pm-name').value.trim();
+  if (!name) { document.getElementById('pm-name').focus(); return; }
+  closeModal('profile-modal');
+  createProfile(name, selectedAvatar);
+}
+
+function canCloseProfileModal() {
+  return profiles.length > 0;
+}
+
+function renderProfilePicker() {
+  const wrap = document.getElementById('profile-list-wrap');
+  if (!wrap) return;
+  if (profiles.length === 0) { wrap.innerHTML = ''; return; }
+  wrap.innerHTML = profiles.map(p =>
+    `<div class="profile-card${p.id === activeProfileId ? ' active-p' : ''}" onclick="switchToProfile('${p.id}')">
+      <div class="profile-avatar">${p.avatar}</div>
+      <div class="profile-info">
+        <div class="profile-name">${escHtml(p.name)}</div>
+        <div class="profile-sub">${p.id === activeProfileId ? t('active_lbl') : t('switch_lbl')}</div>
+      </div>
+      ${p.id === activeProfileId ? '<div class="profile-check">✓</div>' : ''}
+    </div>`
+  ).join('');
+}
+
+function renderProfilesInSettings() {
+  const el = document.getElementById('profiles-list');
+  if (!el) return;
+  el.innerHTML = profiles.map(p =>
+    `<div class="profile-card${p.id === activeProfileId ? ' active-p' : ''}" onclick="switchToProfile('${p.id}')">
+      <div class="profile-avatar">${p.avatar}</div>
+      <div class="profile-info">
+        <div class="profile-name">${escHtml(p.name)}</div>
+        <div class="profile-sub">${p.id === activeProfileId ? t('active_lbl') : t('switch_lbl')}</div>
+      </div>
+      ${p.id === activeProfileId
+        ? '<div class="profile-check">✓</div>'
+        : `<button class="danger-btn" onclick="event.stopPropagation();deleteProfile('${p.id}')">✕</button>`}
+    </div>`
+  ).join('');
+}
+
+function updateUserChip() {
+  const active = profiles.find(p => p.id === activeProfileId);
+  if (!active) return;
+  const av = document.getElementById('chip-avatar');
+  const nm = document.getElementById('chip-name');
+  if (av) av.textContent = active.avatar;
+  if (nm) nm.textContent = active.name;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -571,9 +826,13 @@ function applyI18n() {
   if (ti) ti.placeholder = t('training_placeholder');
   const cq = document.getElementById('custom-q');
   if (cq) cq.placeholder = t('ask_placeholder');
+  const bvo2 = document.getElementById('bm-vo2');
+  if (bvo2) bvo2.placeholder = 'ml/kg/min';
+  const bglc = document.getElementById('bm-glc');
+  if (bglc) bglc.placeholder = 'mg/dL';
 }
 
-function setLang(l) { lang = l; localStorage.setItem('lt_lang', l); applyI18n(); renderActive(); }
+function setLang(l) { lang = l; persistLang(); applyI18n(); renderActive(); }
 function toggleLang() { setLang(lang === 'en' ? 'es' : 'en'); }
 
 // ─────────────────────────────────────────────────────────────────
@@ -711,7 +970,7 @@ function saveTodayField(field, val) {
 // ─────────────────────────────────────────────────────────────────
 // WEEK SCREEN
 // ─────────────────────────────────────────────────────────────────
-let viewWn = todayWn();
+let viewWn = 1;
 
 function changeWeek(dir) {
   viewWn = Math.max(1, viewWn + dir);
@@ -791,7 +1050,7 @@ function renderWeek() {
 // PROGRESS SCREEN
 // ─────────────────────────────────────────────────────────────────
 function renderProgress() {
-  // Collect weight entries from all days
+  // Weight entries
   const entries = Object.entries(DB)
     .filter(([,d]) => d.weight)
     .map(([dk,d]) => ({dk, wn: dateToWn(new Date(dk)), weight: d.weight}))
@@ -818,6 +1077,27 @@ function renderProgress() {
   }
 
   renderWeightChart(entries);
+
+  // VO2 max entries
+  const vo2Entries = Object.entries(DB)
+    .filter(([,d]) => d.vo2max != null)
+    .map(([dk,d]) => ({dk, wn: dateToWn(new Date(dk)), value: d.vo2max}))
+    .sort((a,b) => a.dk.localeCompare(b.dk));
+
+  const latestVo2 = vo2Entries[vo2Entries.length - 1];
+  document.getElementById('prog-vo2').textContent = latestVo2 ? latestVo2.value : '—';
+  renderMetricChart('vo2chart', vo2Entries);
+
+  // Glucose entries
+  const glcEntries = Object.entries(DB)
+    .filter(([,d]) => d.glucose != null)
+    .map(([dk,d]) => ({dk, wn: dateToWn(new Date(dk)), value: d.glucose}))
+    .sort((a,b) => a.dk.localeCompare(b.dk));
+
+  const latestGlc = glcEntries[glcEntries.length - 1];
+  document.getElementById('prog-glc').textContent = latestGlc ? latestGlc.value : '—';
+  renderMetricChart('glcchart', glcEntries);
+
   renderCompChart();
 }
 
@@ -843,6 +1123,36 @@ function renderWeightChart(entries) {
   el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
     <line x1="${px}" y1="${goalY}" x2="${W-px}" y2="${goalY}" stroke="rgba(200,245,66,0.22)" stroke-dasharray="4,3" stroke-width="1.5"/>
     <text x="${W-px+2}" y="${(parseFloat(goalY)+3).toFixed(1)}" fill="rgba(200,245,66,0.45)" font-size="8">goal</text>
+    <path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    ${dots}
+  </svg>`;
+}
+
+function renderMetricChart(elId, entries) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  if (!entries.length) {
+    el.innerHTML = `<p style="color:var(--text3);font-size:12px;padding:8px 0;">${t('no_data')}</p>`;
+    return;
+  }
+
+  const W=320, H=90, px=24, py=14;
+  const vals = entries.map(e => e.value);
+  const spread = Math.max(...vals) - Math.min(...vals);
+  const pad = Math.max(spread * 0.2, 1);
+  const minV = Math.min(...vals) - pad;
+  const maxV = Math.max(...vals) + pad;
+  const sx = i => px + (entries.length > 1 ? (i / (entries.length - 1)) * (W - px * 2) : (W - px * 2) / 2);
+  const sy = v => H - py - ((v - minV) / (maxV - minV)) * (H - py * 2);
+
+  const path = entries.map((e,i) => `${i===0?'M':'L'} ${sx(i).toFixed(1)} ${sy(e.value).toFixed(1)}`).join(' ');
+  const dots = entries.map((e,i) =>
+    `<circle cx="${sx(i).toFixed(1)}" cy="${sy(e.value).toFixed(1)}" r="3.5" fill="var(--accent)"/>` +
+    `<text x="${sx(i).toFixed(1)}" y="${(sy(e.value)-8).toFixed(1)}" fill="#909090" font-size="9" text-anchor="middle">${e.value}</text>` +
+    `<text x="${sx(i).toFixed(1)}" y="${(H-2).toFixed(1)}" fill="#505050" font-size="9" text-anchor="middle">W${e.wn}</text>`
+  ).join('');
+
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
     <path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
     ${dots}
   </svg>`;
@@ -878,14 +1188,20 @@ function openModal(id)  { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
 function saveBodyEntry() {
-  const w  = parseFloat(document.getElementById('bm-w').value);
-  const wa = parseFloat(document.getElementById('bm-wa').value);
+  const w   = parseFloat(document.getElementById('bm-w').value);
+  const wa  = parseFloat(document.getElementById('bm-wa').value);
+  const vo2 = parseFloat(document.getElementById('bm-vo2').value);
+  const glc = parseFloat(document.getElementById('bm-glc').value);
   const day = getDay(todayKey());
-  if (w)  day.weight = w;
-  if (wa) day.waist  = wa;
+  if (!isNaN(w))   day.weight  = w;
+  if (!isNaN(wa))  day.waist   = wa;
+  if (!isNaN(vo2)) day.vo2max  = vo2;
+  if (!isNaN(glc)) day.glucose = glc;
   persist();
-  document.getElementById('bm-w').value  = '';
-  document.getElementById('bm-wa').value = '';
+  document.getElementById('bm-w').value   = '';
+  document.getElementById('bm-wa').value  = '';
+  document.getElementById('bm-vo2').value = '';
+  document.getElementById('bm-glc').value = '';
   closeModal('body-modal');
   renderProgress();
 }
@@ -952,13 +1268,18 @@ async function askClaude() {
   box.className = 'ai-box on';
   box.innerHTML = `<span class="loader"></span><span style="color:var(--accent);font-size:12px;">${lang === 'en' ? 'Thinking…' : 'Pensando…'}</span>`;
 
-  // Compute live stats from DB for context
   const wn = todayWn();
   const allWeights = Object.entries(DB)
     .filter(([,d]) => d.weight)
     .map(([dk,d]) => ({wn: dateToWn(new Date(dk)), w: d.weight}))
     .sort((a,b) => a.wn - b.wn);
   const latestW = allWeights[allWeights.length - 1];
+
+  const vo2Entries = Object.entries(DB).filter(([,d]) => d.vo2max != null).map(([,d]) => d.vo2max);
+  const latestVo2 = vo2Entries.length ? vo2Entries[vo2Entries.length - 1] : null;
+
+  const glcEntries = Object.entries(DB).filter(([,d]) => d.glucose != null).map(([,d]) => d.glucose);
+  const latestGlc = glcEntries.length ? glcEntries[glcEntries.length - 1] : null;
 
   const system = `You are a fitness coach AI embedded in LeanTracker, a personal habit tracking app.
 
@@ -968,8 +1289,7 @@ USER DATA (${wn} weeks tracked, W1 = 30 Mar 2026):
 - Training: ~25 km running/week + 3× weight training (Chest, Back, Legs)
 - Best habits: sweets avoidance (near-perfect all 6 weeks), alcohol (mostly good)
 - Worst habits: sleep (~50% pass rate), calories (spikes 2500–3000 on some days), weekends (most failures on Sat/Sun)
-- W3 weight 86.5 kg → W6 weight 87.7 kg (slight upward drift)
-- W4 note: stomach pain + cravings — likely from undereating on high-output run days
+- W3 weight 86.5 kg → W6 weight 87.7 kg (slight upward drift)${latestVo2 != null ? `\n- VO₂ Max: ${latestVo2} ml/kg/min` : ''}${latestGlc != null ? `\n- Fasting glucose: ${latestGlc} mg/dL` : ''}
 
 Respond in ${lang === 'en' ? 'English' : 'Spanish'}. Be specific, practical, and concise (under 280 words). Use **bold** for key numbers or actions.`;
 
@@ -1003,6 +1323,7 @@ function renderSettingsForm() {
   document.getElementById('s-calmax').value = settings.calMax;
   document.getElementById('s-prot').value   = settings.protein;
   document.getElementById('s-goal').value   = settings.goalWeight;
+  renderProfilesInSettings();
 }
 
 function saveSettings() {
@@ -1010,7 +1331,7 @@ function saveSettings() {
   settings.calMax     = parseInt(document.getElementById('s-calmax').value)   || 2000;
   settings.protein    = parseInt(document.getElementById('s-prot').value)     || 160;
   settings.goalWeight = parseFloat(document.getElementById('s-goal').value)   || 85;
-  localStorage.setItem('lt_settings', JSON.stringify(settings));
+  persistSettings();
   alert(lang === 'en' ? '✓ Settings saved' : '✓ Ajustes guardados');
 }
 
@@ -1018,11 +1339,12 @@ function saveSettings() {
 // EXPORT / IMPORT
 // ─────────────────────────────────────────────────────────────────
 function exportData() {
-  const blob = new Blob([JSON.stringify({version:2, exportedAt:new Date().toISOString(), settings, db:DB}, null, 2)], {type:'application/json'});
+  const active = profiles.find(p => p.id === activeProfileId);
+  const blob = new Blob([JSON.stringify({version:3, exportedAt:new Date().toISOString(), profile:active, settings, db:DB}, null, 2)], {type:'application/json'});
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
   a.href     = url;
-  a.download = `leantracker-${dkey(new Date())}.json`;
+  a.download = `leantracker-${active ? active.name.replace(/\s+/g,'_') : 'data'}-${dkey(new Date())}.json`;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -1035,7 +1357,7 @@ function importData(input) {
     try {
       const data = JSON.parse(e.target.result);
       if (data.db)       { DB = data.db; persist(); }
-      if (data.settings) { settings = data.settings; localStorage.setItem('lt_settings', JSON.stringify(settings)); }
+      if (data.settings) { settings = data.settings; persistSettings(); }
       alert(lang === 'en' ? '✓ Data imported' : '✓ Datos importados');
       renderActive();
     } catch { alert(lang === 'en' ? 'Invalid file.' : 'Archivo inválido.'); }
@@ -1047,10 +1369,45 @@ function importData(input) {
 // ─────────────────────────────────────────────────────────────────
 // BOOT
 // ─────────────────────────────────────────────────────────────────
-seedHistory();            // no-op if DB already exists in localStorage
-viewWn = todayWn();       // week view starts on current week
-applyI18n();
-renderToday();
+function migrateExistingData() {
+  // Move pre-profile data into a "Me" profile so no history is lost
+  if (profiles.length > 0) return;
+  const oldDB  = localStorage.getItem('lt_db');
+  const oldSet = localStorage.getItem('lt_settings');
+  const oldLng = localStorage.getItem('lt_lang');
+  if (!oldDB && !oldSet) return;
+  const id = 'p_legacy';
+  profiles.push({ id, name: 'Me', avatar: '😎', createdAt: new Date().toISOString() });
+  localStorage.setItem('lt_profiles', JSON.stringify(profiles));
+  if (oldDB)  localStorage.setItem(`lt_db_${id}`,       oldDB);
+  if (oldSet) localStorage.setItem(`lt_settings_${id}`, oldSet);
+  if (oldLng) localStorage.setItem(`lt_lang_${id}`,     oldLng);
+  localStorage.removeItem('lt_db');
+  localStorage.removeItem('lt_settings');
+  localStorage.removeItem('lt_lang');
+  activeProfileId = id;
+  localStorage.setItem('lt_active_profile', id);
+}
+
+migrateExistingData();
+
+if (profiles.length === 0) {
+  // Brand new install — show profile picker
+  lang = 'en';
+  document.getElementById('profile-screen').classList.remove('hidden');
+  applyI18n();
+} else {
+  if (!activeProfileId || !profiles.find(p => p.id === activeProfileId)) {
+    activeProfileId = profiles[0].id;
+    localStorage.setItem('lt_active_profile', activeProfileId);
+  }
+  loadProfileData();
+  seedHistory();
+  viewWn = todayWn();
+  applyI18n();
+  renderToday();
+  updateUserChip();
+}
 </script>
 </body>
 </html>
