@@ -263,7 +263,7 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
 .ringwrap{position:relative;width:88px;height:88px;flex-shrink:0;}
 .ringwrap > svg{width:100%;height:100%;filter:drop-shadow(0 0 9px rgba(0,229,255,.35));}
 .ring-ic{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;}
-.ring-ic svg{width:46px;height:46px;animation:floaty 4s ease-in-out infinite;}
+.ring-ic svg{width:30px;height:30px;animation:floaty 4s ease-in-out infinite;}
 .hero-kcal{margin-top:10px;font-family:var(--fd);font-weight:700;font-size:12px;color:var(--accent);letter-spacing:.06em;}
 .illus-side{flex-shrink:0;}
 .illus-side svg{width:64px;height:64px;animation:floaty 4.5s ease-in-out infinite;
@@ -399,6 +399,8 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
   </div>
   <div class="shdr"><span class="shdr-t" data-k="habit_grid"></span></div>
   <div class="wgrid-wrap"><div class="wgrid" id="wgrid"></div></div>
+  <div class="shdr"><span class="shdr-t" data-k="habit_radar"></span></div>
+  <div class="card glow" style="display:flex;justify-content:center;padding:10px 8px;"><div id="radar"></div></div>
   <div class="shdr"><span class="shdr-t" data-k="calories_week"></span></div>
   <div class="card">
     <div class="cbars" id="cbars"></div>
@@ -595,6 +597,7 @@ en:{
   indulgent:'Indulgent meal + drinks (log kcal manually)',
   streak_w:'STREAK', dest:'STOCKHOLM',
   meals_done:'ALL MEALS LOGGED ✦', habits_done:'ALL HABITS CRUSHED ✦', workout_done:'WORKOUT COMPLETE ✦',
+  runs_done:'ALL RUNS LOGGED ✦', habit_radar:'Habit radar',
   rules:[
     'Week 2 will stall — hold the line, do not cut calories. Adjusting UP if ravenous/sleeping badly is winning.',
     'Weekends: anchor breakfast first, ONE indulgent meal, drinks decided sober before going out.',
@@ -640,6 +643,7 @@ es:{
   indulgent:'Comida libre + bebidas (registra kcal a mano)',
   streak_w:'RACHA', dest:'ESTOCOLMO',
   meals_done:'COMIDAS COMPLETAS ✦', habits_done:'HÁBITOS COMPLETOS ✦', workout_done:'ENTRENO COMPLETO ✦',
+  runs_done:'CARRERAS COMPLETAS ✦', habit_radar:'Radar de hábitos',
   rules:[
     'La semana 2 se estancará — aguanta, no recortes calorías. Subirlas si tienes hambre voraz o duermes mal es ganar.',
     'Fines de semana: ancla el desayuno primero, UNA comida libre, bebidas decididas sobrio antes de salir.',
@@ -649,7 +653,7 @@ es:{
   ins_weight_ahead:'Adelantado al plan', ins_weight_behind:'Detrás de la curva', ins_weigh_in:'Registra un pesaje',
 }};
 
-const APP_VERSION = 'v4.0';  // bump on release — shown in Settings so a stale cache is easy to spot
+const APP_VERSION = 'v4.1';  // bump on release — shown in Settings so a stale cache is easy to spot
 
 const HICONS = ['🍷','🍬','💧','🔥','🥩','💪','😴','📱'];
 const HKEYS  = ['alcohol','dulce','agua','cal','macros','training','sleep','phone'];
@@ -945,7 +949,7 @@ function programDayIdx() {
 function isActiveDay(dk) {
   const d = DB[dk];
   if (!d) return false;
-  if (d.cal || d.training || d.weight || d.waist) return true;
+  if (d.cal || d.training || d.weight || d.waist || d.runDone) return true;
   if (d.habits && Object.values(d.habits).some(v => v !== null && v !== undefined)) return true;
   if (d.meals && Object.keys(d.meals).length) return true;
   if (d.lifts && Object.keys(d.lifts).length) return true;
@@ -1002,6 +1006,43 @@ function countUp(el, target, suffix) {
   requestAnimationFrame(step);
 }
 
+// ── Triple activity rings: kcal (outer) / habits (mid) / training (inner)
+function _ringArc(id, r, stroke) {
+  const C = (2 * Math.PI * r).toFixed(1);
+  return '<circle id="' + id + '" cx="46" cy="46" r="' + r + '" fill="none" stroke="' + stroke + '" ' +
+    'stroke-width="5.5" stroke-linecap="round" stroke-dasharray="' + C + '" stroke-dashoffset="' + C + '" ' +
+    'transform="rotate(-90 46 46)" style="transition:stroke-dashoffset .5s cubic-bezier(.2,.8,.3,1);"/>';
+}
+function ringStats(dk) {
+  const day = getDay(dk);
+  const plan = DAYPLAN[todayDow()];
+  const hk = HKEYS.filter(k => k !== 'cal');
+  const hp = hk.filter(k => day.habits[k] === 1).length;
+  let train = 0, trainLbl = '—';
+  if (plan.workout) {
+    const done = plan.workout.reduce((s, _, i) => s + (day.lifts[i] ? 1 : 0), 0);
+    train = done / plan.workout.length;
+    trainLbl = done + '/' + plan.workout.length;
+  } else {
+    train = (day.runDone || day.training) ? 1 : 0;
+    trainLbl = train ? '✓' : '—';
+  }
+  return {cal: day.cal || 0, target: plan.cal, kcal: Math.min((day.cal || 0) / plan.cal, 1),
+          habits: hp / hk.length, hp, hkLen: hk.length, train: Math.min(train, 1), trainLbl};
+}
+function updateRings() {
+  const s = ringStats(todayKey());
+  [['hero-arc', 40, s.kcal], ['hero-arc-h', 33, s.habits], ['hero-arc-t', 26, s.train]].forEach(([id, r, p]) => {
+    const el = document.getElementById(id);
+    if (el) el.style.strokeDashoffset = ((2 * Math.PI * r) * (1 - p)).toFixed(1);
+  });
+  const hk = document.getElementById('hero-kcal');
+  if (hk) hk.innerHTML =
+    '<span style="color:var(--accent);">🔥 ' + s.cal + '/' + s.target + '</span>' +
+    '<span style="color:var(--text3);"> · </span><span style="color:var(--green);">✓ ' + s.hp + '/' + s.hkLen + '</span>' +
+    '<span style="color:var(--text3);"> · </span><span style="color:#a78bfa;">💪 ' + s.trainLbl + '</span>';
+}
+
 let _tickerLast = '';
 function setTicker() {
   const el = document.getElementById('ticker');
@@ -1041,25 +1082,23 @@ function renderToday() {
   document.getElementById('streak-chip').textContent = '⚡ ' + calcStreak();
   setTicker();
 
-  // Hero — today's focus, calorie ring + day-type illustration
-  const day0 = getDay(todayKey());
-  const consumed = day0.cal || 0;
-  const RC = 2 * Math.PI * 40;
-  const rp = Math.min(consumed / tCal, 1);
+  // Hero — today's focus + triple activity rings (kcal / habits / training)
   document.getElementById('hero-card').innerHTML =
     '<div style="display:flex;align-items:center;gap:12px;position:relative;z-index:1;">' +
       '<div style="flex:1;">' +
         '<div class="disp hero-focus">' + plan.focus[lang] + (runKm ? ' · ' + runKm + ' KM' : '') + '</div>' +
         '<div class="hero-tag">' + plan.tag[lang] + '</div>' +
-        '<div class="hero-kcal" id="hero-kcal">' + consumed + ' / ' + tCal + ' kcal</div>' +
+        '<div class="hero-kcal" id="hero-kcal"></div>' +
       '</div>' +
       '<div class="ringwrap">' +
         '<svg viewBox="0 0 92 92"><defs><linearGradient id="hring" x1="0" y1="0" x2="1" y2="1">' +
         '<stop offset="0" stop-color="#00e5ff"/><stop offset="1" stop-color="#e879f9"/></linearGradient></defs>' +
-        '<circle cx="46" cy="46" r="40" fill="none" stroke="rgba(120,160,255,0.12)" stroke-width="6"/>' +
-        '<circle id="hero-arc" cx="46" cy="46" r="40" fill="none" stroke="url(#hring)" stroke-width="6" stroke-linecap="round" ' +
-          'stroke-dasharray="' + RC.toFixed(1) + '" stroke-dashoffset="' + (RC * (1 - rp)).toFixed(1) + '" ' +
-          'transform="rotate(-90 46 46)" style="transition:stroke-dashoffset .5s cubic-bezier(.2,.8,.3,1);"/>' +
+        '<circle cx="46" cy="46" r="40" fill="none" stroke="rgba(120,160,255,0.10)" stroke-width="5.5"/>' +
+        '<circle cx="46" cy="46" r="33" fill="none" stroke="rgba(120,160,255,0.10)" stroke-width="5.5"/>' +
+        '<circle cx="46" cy="46" r="26" fill="none" stroke="rgba(120,160,255,0.10)" stroke-width="5.5"/>' +
+        _ringArc('hero-arc', 40, 'url(#hring)') +
+        _ringArc('hero-arc-h', 33, '#3ef2a5') +
+        _ringArc('hero-arc-t', 26, '#a78bfa') +
         '</svg>' +
         '<div class="ring-ic">' + illus(plan.illus) + '</div>' +
       '</div>' +
@@ -1093,6 +1132,7 @@ function renderToday() {
   renderHabits(dk, day, tCal);
   renderWorkout(dk, plan);
   refreshScore(dk);
+  updateRings();
 
   const ti = document.getElementById('training-inp');
   if (ti) ti.value = day.training || '';
@@ -1192,6 +1232,7 @@ function toggleLift(dk, i, el) {
   const plan = DAYPLAN[todayDow()];
   if (turningOn && el) burst(el.querySelector('.chk') || el);
   renderWorkout(dk, plan);
+  updateRings();
   if (turningOn && plan.workout && plan.workout.every((_, j) => day.lifts[j])) toast(t('workout_done'));
 }
 
@@ -1206,6 +1247,7 @@ function cycleHabit(el) {
   el.className = 'sdot ' + sCls(day.habits[key]);
   el.textContent = sIcon(day.habits[key]);
   refreshScore(dk);
+  updateRings();
   if (day.habits[key] === 1) {
     burst(el);
     if (HKEYS.filter(k => k !== 'cal').every(k => day.habits[k] === 1)) toast(t('habits_done'));
@@ -1233,14 +1275,7 @@ function onCalInput(val, tCal) {
   const bc  = n > tCal * 1.05 ? 'var(--red)' : (n && n < tCal * 0.75) ? 'var(--amber)' : 'var(--grad)';
   const bar = document.getElementById('cal-bar');
   if (bar) { bar.style.width = pct + '%'; bar.style.background = bc; }
-  // keep the hero ring in sync
-  const arc = document.getElementById('hero-arc');
-  if (arc) {
-    const RC = 2 * Math.PI * 40;
-    arc.style.strokeDashoffset = (RC * (1 - Math.min((n || 0) / tCal, 1))).toFixed(1);
-  }
-  const hk = document.getElementById('hero-kcal');
-  if (hk) hk.textContent = (n || 0) + ' / ' + tCal + ' kcal';
+  updateRings();
 }
 
 function saveTodayField(field, val) {
@@ -1331,22 +1366,32 @@ function renderWeek() {
       '<div class="cbar-v">' + (cal || '—') + '</div></div>';
   }).join('');
 
-  // Running plan for this program week
+  // Habit radar — weekly average per habit (pass=1, partial=0.5, fail=0)
+  renderRadar(dks);
+
+  // Running plan for this program week — tap a run to log it; km fill the bar
   const runPlan = PROGRAM.runs[wn - 1];
   const runCard = document.getElementById('run-card');
   if (runPlan) {
-    let totalKm = 0;
-    runCard.innerHTML = '<span class="illus-mini">' + illus('run') + '</span>' + dks.map((dk, dow) => {
+    let totalKm = 0, doneKm = 0;
+    const rows = dks.map((dk, dow) => {
       const km = runPlan[dow];
       if (!km) return '';
       totalKm += km;
+      const done = !!DB[dk]?.runDone;
+      if (done) doneKm += km;
       const tr = DB[dk]?.training;
-      return '<div class="run-row">' +
+      return '<div class="run-row" style="cursor:pointer;" onclick="toggleRun(\'' + dk + '\',this)">' +
+        '<div class="chk' + (done ? ' on' : '') + '">' + (done ? '✓' : '') + '</div>' +
         '<span class="run-day">' + ds[dow] + '</span>' +
         '<span class="run-km grad-text">' + km + ' km</span>' +
-        '<span style="flex:1;text-align:right;font-size:12px;color:var(--text2);">' + (tr ? '✓ ' + tr : '') + '</span></div>';
+        '<span style="flex:1;text-align:right;font-size:12px;color:var(--text2);">' + (tr || '') + '</span></div>';
     }).join('');
-    document.getElementById('run-total').textContent = totalKm + ' km ' + t('total');
+    const pctR = totalKm ? Math.min((doneKm / totalKm) * 100, 100) : 0;
+    runCard.innerHTML = '<span class="illus-mini">' + illus('run') + '</span>' + rows +
+      '<div class="tbar-bg" style="height:7px;margin-top:11px;"><div class="tbar-fill" style="width:' + pctR + '%;background:var(--grad);"></div></div>' +
+      '<div class="tbar-lbl"><span>' + doneKm + ' km</span><span>' + totalKm + ' km</span></div>';
+    document.getElementById('run-total').textContent = doneKm + ' / ' + totalKm + ' km';
   } else {
     runCard.innerHTML = '<span style="color:var(--text3);font-size:13px;">' + t('no_run') + '</span>';
     document.getElementById('run-total').textContent = '—';
@@ -1361,6 +1406,67 @@ function renderWeek() {
       '<span style="color:var(--text2);font-size:13px;">' + tr + '</span></div>';
   }).join('');
   document.getElementById('tlog-card').innerHTML = tlog || '<span style="color:var(--text3);font-size:13px;">' + t('no_data') + '</span>';
+}
+
+function toggleRun(dk, el) {
+  const day = getDay(dk);
+  const turningOn = !day.runDone;
+  day.runDone = turningOn ? 1 : 0;
+  persist();
+  if (turningOn && el) burst(el.querySelector('.chk') || el);
+  renderWeek();
+  if (dk === todayKey()) updateRings();
+  if (turningOn) {
+    const plan = PROGRAM.runs[viewWn - 1];
+    if (plan && getWeekKeys(viewWn).every((k, dow) => !plan[dow] || DB[k]?.runDone)) toast(t('runs_done'));
+  }
+}
+
+// 7-axis spider chart: one axis per habit (calories has its own bar chart)
+function renderRadar(dks) {
+  const el = document.getElementById('radar');
+  if (!el) return;
+  const hk = HKEYS.filter(k => k !== 'cal');
+  const hn = L[lang].hnames.filter((_, i) => HKEYS[i] !== 'cal');
+  const vals = hk.map(k => {
+    let s = 0, c = 0;
+    dks.forEach(dk => {
+      const v = DB[dk]?.habits?.[k];
+      if (v !== null && v !== undefined) { s += v; c++; }
+    });
+    return c ? s / c : 0;
+  });
+  const W = 280, H = 232, cx = 140, cy = 119, R = 78, n = hk.length;
+  const pt = (i, r) => {
+    const a = i * 2 * Math.PI / n - Math.PI / 2;
+    return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+  };
+  const poly = r => hk.map((_, i) => pt(i, r).map(x => x.toFixed(1)).join(',')).join(' ');
+  const dataPoly = vals.map((v, i) => pt(i, Math.max(v, 0.04) * R).map(x => x.toFixed(1)).join(',')).join(' ');
+  let axes = '', labels = '';
+  hk.forEach((k, i) => {
+    const [x, y] = pt(i, R);
+    axes += '<line x1="' + cx + '" y1="' + cy + '" x2="' + x.toFixed(1) + '" y2="' + y.toFixed(1) + '" stroke="rgba(120,160,255,0.12)"/>';
+    const [lx, ly] = pt(i, R + 17);
+    labels += '<text x="' + lx.toFixed(1) + '" y="' + (ly + 3).toFixed(1) + '" fill="#8b96b8" font-size="8" ' +
+      'text-anchor="middle" font-family="Orbitron, sans-serif" letter-spacing="1">' +
+      hn[i].toUpperCase().slice(0, 8) + '</text>';
+  });
+  const dots = vals.map((v, i) => {
+    const [x, y] = pt(i, Math.max(v, 0.04) * R);
+    return '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="3" fill="#00e5ff" ' +
+      'style="filter:drop-shadow(0 0 4px rgba(0,229,255,.8));"/>';
+  }).join('');
+  el.innerHTML =
+    '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '">' +
+    '<defs><linearGradient id="rdg" x1="0" y1="0" x2="1" y2="1">' +
+    '<stop offset="0" stop-color="#00e5ff"/><stop offset="1" stop-color="#e879f9"/></linearGradient></defs>' +
+    '<polygon points="' + poly(R) + '" fill="none" stroke="rgba(120,160,255,0.18)"/>' +
+    '<polygon points="' + poly(R * 0.66) + '" fill="none" stroke="rgba(120,160,255,0.10)"/>' +
+    '<polygon points="' + poly(R * 0.33) + '" fill="none" stroke="rgba(120,160,255,0.10)"/>' +
+    axes +
+    '<polygon points="' + dataPoly + '" fill="rgba(0,229,255,0.13)" stroke="url(#rdg)" stroke-width="2" stroke-linejoin="round"/>' +
+    dots + labels + '</svg>';
 }
 
 // ─────────────────────────────────────────────────────────────────
