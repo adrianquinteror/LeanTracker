@@ -342,6 +342,33 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
   transition:transform .4s cubic-bezier(.2,.8,.3,1);box-shadow:0 0 26px rgba(0,229,255,.25);}
 .toast.show{transform:translate(-50%,0);}
 
+/* DAY STRIP */
+.dstrip{display:flex;gap:5px;padding:0 14px 12px;align-items:stretch;}
+.dchip{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:7px 0 6px;
+  border-radius:12px;background:var(--bg2);border:1px solid var(--border);cursor:pointer;transition:all .2s;}
+.dchip .d1{font-family:var(--fd);font-weight:700;font-size:8px;color:var(--text2);letter-spacing:.08em;}
+.dchip .d2{font-size:13px;font-weight:600;line-height:1.1;}
+.dchip.today{border-color:rgba(0,229,255,.45);}
+.dchip.sel{background:var(--grad);border-color:transparent;box-shadow:0 0 14px rgba(0,229,255,.35);}
+.dchip.sel .d1,.dchip.sel .d2{color:#031018;}
+.dchip.sel .caldot{background:#031018;}
+.caldot{width:4px;height:4px;border-radius:50%;background:var(--accent);}
+
+/* CALENDAR */
+.calwk{display:grid;grid-template-columns:26px repeat(7,1fr);gap:3px;margin-bottom:3px;}
+.calhd{display:flex;align-items:center;justify-content:center;font-family:var(--fd);font-weight:700;
+  font-size:8.5px;color:var(--text2);letter-spacing:.06em;padding:3px 0;}
+.calwn{display:flex;align-items:center;justify-content:center;font-family:var(--fd);font-weight:700;
+  font-size:9px;color:var(--accent);}
+.calcell{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:2px;border-radius:10px;font-size:12.5px;background:var(--bg3);border:1px solid transparent;
+  cursor:pointer;transition:all .15s;}
+.calcell.out{opacity:.30;}
+.calcell.prog{background:rgba(0,229,255,0.07);border-color:rgba(0,229,255,.14);}
+.calcell.today{border-color:rgba(0,229,255,.55);}
+.calcell.sel{background:var(--grad);color:#031018;font-weight:700;box-shadow:0 0 12px rgba(0,229,255,.4);}
+.calcell.sel .caldot{background:#031018;}
+
 /* ACCESSIBILITY */
 @media (prefers-reduced-motion: reduce){
   *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;
@@ -371,15 +398,17 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
 <div id="scr-today" class="scr active">
   <div class="hdr">
     <div class="hdr-row">
-      <div><div class="disp hdr-title grad-text" id="hdr-today">TODAY</div><div class="hdr-sub" id="sub-today"></div></div>
+      <div style="cursor:pointer;" onclick="goToday()"><div class="disp hdr-title grad-text" id="hdr-today">TODAY</div><div class="hdr-sub" id="sub-today"></div></div>
       <div style="display:flex;align-items:center;gap:8px;">
         <span class="streak-chip" id="streak-chip"></span>
+        <button class="lang-btn" onclick="openCal()" id="cal-btn" aria-label="calendar"></button>
         <button class="lang-btn" onclick="toggleLang()" id="lang-btn">ES</button>
       </div>
     </div>
   </div>
   <div class="ticker" id="ticker"></div>
   <div style="height:8px"></div>
+  <div class="dstrip" id="dstrip"></div>
   <div class="card hero" id="hero-card"></div>
   <div class="shdr"><span class="shdr-t" data-k="targets"></span></div>
   <div class="card"><div class="tgrid" id="tgrid"></div></div>
@@ -511,6 +540,8 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
       <input class="inp" id="s-prot" type="number" style="margin:0;"></div>
     <div style="margin-bottom:11px;"><label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;" data-k="goal_weight_s"></label>
       <input class="inp" id="s-goal" type="number" step="0.5" style="margin:0;"></div>
+    <div style="margin-bottom:11px;"><label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;" data-k="program_start"></label>
+      <input class="inp" id="s-start" type="date" style="margin:0;"></div>
     <button class="mbtn" onclick="saveSettings()"><span data-k="save"></span></button>
   </div>
   <div class="shdr"><span class="shdr-t" data-k="claude_access"></span></div>
@@ -560,6 +591,23 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
     <span data-k="tab_settings"></span>
   </button>
+</div>
+
+<!-- CALENDAR MODAL -->
+<div class="modal-ov" id="cal-modal" onclick="if(event.target===this)closeModal('cal-modal')">
+  <div class="modal">
+    <div class="modal-h"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div class="wnav-btn" onclick="calNav(-1)">‹</div>
+      <div class="modal-t grad-text" id="cal-title" style="margin:0;font-size:15px;"></div>
+      <div class="wnav-btn" onclick="calNav(1)">›</div>
+    </div>
+    <div id="cal-grid"></div>
+    <div style="display:flex;gap:14px;margin-top:12px;font-size:10px;color:var(--text2);flex-wrap:wrap;">
+      <span><span class="caldot" style="display:inline-block;margin-right:4px;"></span><span data-k="cal_logged"></span></span>
+      <span><span style="display:inline-block;width:9px;height:9px;border-radius:3px;background:rgba(0,229,255,0.10);border:1px solid rgba(0,229,255,.3);margin-right:4px;"></span><span data-k="cal_program"></span></span>
+    </div>
+  </div>
 </div>
 
 <!-- BODY MODAL -->
@@ -618,6 +666,7 @@ en:{
   streak_w:'STREAK', dest:'STOCKHOLM',
   meals_done:'ALL MEALS LOGGED ✦', habits_done:'ALL HABITS CRUSHED ✦', workout_done:'WORKOUT COMPLETE ✦',
   runs_done:'ALL RUNS LOGGED ✦', habit_radar:'Habit radar',
+  program_start:'Program start (week 1)', cal_logged:'logged', cal_program:'program week',
   rules:[
     'Week 2 will stall — hold the line, do not cut calories. Adjusting UP if ravenous/sleeping badly is winning.',
     'Weekends: anchor breakfast first, ONE indulgent meal, drinks decided sober before going out.',
@@ -664,6 +713,7 @@ es:{
   streak_w:'RACHA', dest:'ESTOCOLMO',
   meals_done:'COMIDAS COMPLETAS ✦', habits_done:'HÁBITOS COMPLETOS ✦', workout_done:'ENTRENO COMPLETO ✦',
   runs_done:'CARRERAS COMPLETAS ✦', habit_radar:'Radar de hábitos',
+  program_start:'Inicio del programa (semana 1)', cal_logged:'registrado', cal_program:'semana del programa',
   rules:[
     'La semana 2 se estancará — aguanta, no recortes calorías. Subirlas si tienes hambre voraz o duermes mal es ganar.',
     'Fines de semana: ancla el desayuno primero, UNA comida libre, bebidas decididas sobrio antes de salir.',
@@ -673,7 +723,7 @@ es:{
   ins_weight_ahead:'Adelantado al plan', ins_weight_behind:'Detrás de la curva', ins_weigh_in:'Registra un pesaje',
 }};
 
-const APP_VERSION = 'v4.2';  // bump on release — shown in Settings so a stale cache is easy to spot
+const APP_VERSION = 'v5.0';  // bump on release — shown in Settings so a stale cache is easy to spot
 
 const HKEYS = ['alcohol','dulce','agua','cal','macros','training','sleep','phone'];
 
@@ -804,11 +854,31 @@ const GOAL = {
 //   any       → timing-flexible staple (skyr, oats, fruit, shakes) — no chip
 //   indulgent → weekend free meal under the daily cap
 const CTXCHIP = {
-  office:    {ic:'🏢', en:'office',  es:'oficina'},
-  home:      {ic:'🏠', en:'home',    es:'casa'},
-  flex:      {ic:'⇄',  en:'any day', es:'cualquier día'},
-  indulgent: {ic:'✨', en:'free',    es:'libre'},
+  office:    {en:'office',  es:'oficina'},
+  home:      {en:'home',    es:'casa'},
+  flex:      {en:'any day', es:'cualquier día'},
+  indulgent: {en:'free',    es:'libre'},
 };
+
+// currentColor micro-icons — inherit the color of whatever they sit in
+const CICON_FN = {
+  office:    '<rect x="5" y="4" width="9" height="16" rx="1"/><path d="M14 9 H19 V20"/><path d="M4 20 H20"/><path d="M8 8 H11"/><path d="M8 12 H11"/><path d="M8 16 H11"/>',
+  home:      '<path d="M4 11 L12 4 L20 11"/><path d="M6.5 9.5 V20 H17.5 V9.5"/><path d="M10 20 V14.5 H14 V20"/>',
+  flex:      '<path d="M4 9 H17 L14 6"/><path d="M20 15 H7 L10 18"/>',
+  indulgent: '<path d="M12 4 C12.8 9 15 11.2 20 12 C15 12.8 12.8 15 12 20 C11.2 15 9 12.8 4 12 C9 11.2 11.2 9 12 4 Z"/>',
+  alert:     '<path d="M12 4.5 L21 19.5 H3 Z"/><path d="M12 10.5 V14"/><circle cx="12" cy="16.6" r="0.7" fill="currentColor"/>',
+  check:     '<circle cx="12" cy="12" r="8.5"/><path d="M8.2 12.2 L10.8 14.8 L15.8 9.5"/>',
+  trenddown: '<path d="M4 8 L10 14 L13.5 10.5 L20 17"/><path d="M20 17 H14.5"/><path d="M20 17 V11.5"/>',
+  trendup:   '<path d="M4 16 L10 10 L13.5 13.5 L20 7"/><path d="M20 7 H14.5"/><path d="M20 7 V12.5"/>',
+  calendar:  '<rect x="4" y="5" width="16" height="16" rx="2.5"/><path d="M8 3 V7"/><path d="M16 3 V7"/><path d="M4 10.5 H20"/>',
+  scalemini: '<rect x="5" y="4.5" width="14" height="15" rx="3.5"/><path d="M8.6 11.5 A 4.2 4.2 0 0 1 15.4 11.5"/><path d="M12 12 L14.3 8.9"/>',
+};
+function cicon(name, size) {
+  const s = size || 13;
+  return '<svg width="' + s + '" height="' + s + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1.5px;" ' +
+    'xmlns="http://www.w3.org/2000/svg">' + CICON_FN[name] + '</svg>';
+}
 
 // ─────────────────────────────────────────────────────────────────
 // PROGRAM DATA — "THE CUT" · 7 Jun → 3 Jul 2026 (from cut tracker sheet)
@@ -877,12 +947,28 @@ const DAYPLAN = {
 // entries a day backwards for timezones ahead of UTC).
 // Weeks are Sunday-anchored to match the program sheet (Jun 7 = Sun).
 // ─────────────────────────────────────────────────────────────────
-const W1_START = new Date(PROGRAM.startY, PROGRAM.startM, PROGRAM.startD); // local midnight
+// Week 1 = the calendar week containing the configured program start
+// date (Settings → Program start). Weeks are Sunday-anchored, and any
+// calendar week maps to a relative number (≤0 before the program).
+const PROG_DAYS = 27;                       // Sun start → Fri end, 4 program weeks
+function w1Start() {
+  const parts = (settings.startDate || '2026-06-07').split('-').map(Number);
+  const d = new Date(parts[0], parts[1] - 1, parts[2]);
+  d.setHours(0,0,0,0);
+  d.setDate(d.getDate() - d.getDay());      // snap to that week's Sunday
+  return d;
+}
+function progEnd() {
+  const d = new Date(w1Start());
+  d.setDate(d.getDate() + PROG_DAYS - 1);
+  return d;
+}
 
 function dkey(d) {
   const x = new Date(d);
   return x.getFullYear() + '-' + String(x.getMonth()+1).padStart(2,'0') + '-' + String(x.getDate()).padStart(2,'0');
 }
+function dowOf(dk) { return new Date(dk + 'T12:00:00').getDay(); }
 function getWeekStart(d) {           // Sunday of the week containing d
   const x = new Date(d);
   x.setHours(0,0,0,0);
@@ -892,16 +978,28 @@ function getWeekStart(d) {           // Sunday of the week containing d
 function dateToWn(d) {
   const ws = getWeekStart(d);
   // round (not floor): a DST shift makes the diff ±1h off an exact week
-  return Math.max(1, Math.round((ws - W1_START) / 604800000) + 1);
+  return Math.round((ws - w1Start()) / 604800000) + 1;
 }
 function wnToStart(wn) {
-  const d = new Date(W1_START);
+  const d = new Date(w1Start());
   d.setDate(d.getDate() + (wn - 1) * 7);
   return d;
 }
 function todayKey() { return dkey(new Date()); }
 function todayWn()  { return dateToWn(new Date()); }
 function todayDow() { return new Date().getDay(); }
+
+// Selected day on the tracking screen — defaults to today, any day editable
+let selDate = (() => { const d = new Date(); d.setHours(0,0,0,0); return d; })();
+function selKey() { return dkey(selDate); }
+function selDow() { return selDate.getDay(); }
+function isTodaySel() { return selKey() === todayKey(); }
+function setSelDate(d) {
+  selDate = new Date(d);
+  selDate.setHours(0,0,0,0);
+  if (activeScr !== 'today') showScr('today'); else renderToday();
+}
+function goToday() { setSelDate(new Date()); }
 
 function fmtDate(d) {
   return new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'numeric'});
@@ -974,6 +1072,7 @@ function showScr(name, btn) {
   document.querySelectorAll('.scr').forEach(s => s.classList.remove('active'));
   document.getElementById('scr-' + name).classList.add('active');
   document.querySelectorAll('.tabbtn').forEach(b => b.classList.remove('active'));
+  if (!btn) btn = document.querySelectorAll('.tabbtn')[{today:0,week:1,progress:2,plan:3,settings:4}[name]];
   if (btn) btn.classList.add('active');
   activeScr = name;
   renderActive();
@@ -995,16 +1094,13 @@ function dayTarget(dow) { return DAYPLAN[dow].cal; }
 // ─────────────────────────────────────────────────────────────────
 // MISSION HUD — streak, countdown, micro-reward feedback
 // ─────────────────────────────────────────────────────────────────
-const PROG_END = new Date(PROGRAM.endY, PROGRAM.endM, PROGRAM.endD);
-const PROG_DAYS = Math.round((PROG_END - W1_START) / 86400000) + 1;  // 27
-
 function daysLeft() {
   const now = new Date(); now.setHours(0,0,0,0);
-  return Math.max(0, Math.round((PROG_END - now) / 86400000));
+  return Math.max(0, Math.round((progEnd() - now) / 86400000));
 }
 function programDayIdx() {
   const now = new Date(); now.setHours(0,0,0,0);
-  return Math.min(Math.max(Math.round((now - W1_START) / 86400000), 0), PROG_DAYS - 1);
+  return Math.min(Math.max(Math.round((now - w1Start()) / 86400000), 0), PROG_DAYS - 1);
 }
 
 // A day keeps the streak alive if ANYTHING was logged — the streak
@@ -1078,7 +1174,7 @@ function _ringArc(id, r, stroke) {
 }
 function ringStats(dk) {
   const day = getDay(dk);
-  const plan = DAYPLAN[todayDow()];
+  const plan = DAYPLAN[dowOf(dk)];
   const hk = HKEYS.filter(k => k !== 'cal');
   const hp = hk.filter(k => day.habits[k] === 1).length;
   let train = 0, trainLbl = '—';
@@ -1094,7 +1190,7 @@ function ringStats(dk) {
           habits: hp / hk.length, hp, hkLen: hk.length, train: Math.min(train, 1), trainLbl};
 }
 function updateRings() {
-  const s = ringStats(todayKey());
+  const s = ringStats(selKey());
   [['hero-arc', 41, s.kcal], ['hero-arc-h', 34.5, s.habits], ['hero-arc-t', 28, s.train]].forEach(([id, r, p]) => {
     const el = document.getElementById(id);
     if (el) el.style.strokeDashoffset = ((2 * Math.PI * r) * (1 - p)).toFixed(1);
@@ -1110,7 +1206,7 @@ let _tickerLast = '';
 function setTicker() {
   const el = document.getElementById('ticker');
   if (!el) return;
-  const wn = Math.min(todayWn(), PROGRAM.weeks);
+  const wn = Math.min(Math.max(todayWn(), 1), PROGRAM.weeks);
   const plan = DAYPLAN[todayDow()];
   const txt = '» W' + wn + '/' + PROGRAM.weeks + ' ─ ' + plan.focus[lang].toUpperCase() +
     ' ─ ' + plan.cal + ' KCAL ─ ' + t('streak_w') + ' ' + calcStreak() + 'D ─ T−' + daysLeft() + ' ' + t('dest');
@@ -1132,18 +1228,21 @@ function runKmFor(wn, dow) {
 // TODAY SCREEN
 // ─────────────────────────────────────────────────────────────────
 function renderToday() {
-  const now = new Date();
-  const dow = todayDow();
-  const wn  = todayWn();
+  const dow = selDow();
+  const wn  = dateToWn(selDate);
   const ds  = L[lang].dshort;
   const plan = DAYPLAN[dow];
   const tCal = plan.cal;
   const runKm = runKmFor(wn, dow);
 
-  document.getElementById('hdr-today').textContent = lang === 'en' ? 'TODAY' : 'HOY';
-  document.getElementById('sub-today').textContent = ds[dow] + '  ·  W' + wn + '/' + PROGRAM.weeks + '  ·  ' + fmtDate(now);
+  document.getElementById('hdr-today').textContent =
+    isTodaySel() ? (lang === 'en' ? 'TODAY' : 'HOY') : ds[dow] + ' ' + String(selDate.getDate()).padStart(2,'0');
+  document.getElementById('sub-today').textContent =
+    ds[dow] + '  ·  W' + wn + '/' + PROGRAM.weeks + '  ·  ' + fmtDate(selDate) +
+    (isTodaySel() ? '' : (lang === 'en' ? '  ·  tap title for today' : '  ·  toca el título para hoy'));
   updateStreak();
   setTicker();
+  renderDayStrip();
 
   // Hero — today's focus + triple activity rings (kcal / habits / training)
   document.getElementById('hero-card').innerHTML =
@@ -1188,7 +1287,7 @@ function renderToday() {
     '<div class="titem"><div class="titem-val">' + settings.goalWeight + 'kg</div><div class="titem-lbl">' + t('t_goal') + '</div></div>' +
     '<div class="titem"><div class="titem-val">0</div><div class="titem-lbl">' + t('t_alc') + '</div></div>';
 
-  const dk  = todayKey();
+  const dk  = selKey();
   const day = getDay(dk);
 
   renderMeals(dk, plan, tCal);
@@ -1201,13 +1300,38 @@ function renderToday() {
   if (ti) ti.value = day.training || '';
 }
 
+// 7-day strip for the selected week — tap a day to edit it
+function renderDayStrip() {
+  const el = document.getElementById('dstrip');
+  if (!el) return;
+  const ds = L[lang].dshort;
+  const ws = getWeekStart(selDate);
+  const tk = todayKey(), sk = selKey();
+  let html = '<div class="wnav-btn" onclick="stripWeek(-1)" style="flex-shrink:0;">‹</div>';
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(ws); d.setDate(d.getDate() + i);
+    const dk = dkey(d);
+    html += '<div class="dchip' + (dk === sk ? ' sel' : '') + (dk === tk ? ' today' : '') + '" ' +
+      'onclick="setSelDate(new Date(' + d.getFullYear() + ',' + d.getMonth() + ',' + d.getDate() + '))">' +
+      '<span class="d1">' + ds[i] + '</span><span class="d2">' + d.getDate() + '</span>' +
+      '<span class="caldot" style="' + (isActiveDay(dk) ? '' : 'visibility:hidden;') + '"></span></div>';
+  }
+  html += '<div class="wnav-btn" onclick="stripWeek(1)" style="flex-shrink:0;">›</div>';
+  el.innerHTML = html;
+}
+function stripWeek(dir) {
+  const d = new Date(selDate);
+  d.setDate(d.getDate() + dir * 7);
+  setSelDate(d);
+}
+
 function renderMeals(dk, plan, tCal) {
   const day = getDay(dk);
   const list = document.getElementById('meal-list');
   list.innerHTML = plan.meals.map((m, i) => {
     const name = m.c === 'indulgent' ? t('indulgent') : m.n;
     const cc = CTXCHIP[m.c];
-    const chip = cc ? '<span class="chip c-' + m.c + '">' + cc.ic + ' ' + cc[lang] + '</span>' : '';
+    const chip = cc ? '<span class="chip c-' + m.c + '">' + cicon(m.c, 10) + ' ' + cc[lang] + '</span>' : '';
     const on = !!day.meals[i];
     return '<div class="chk-row' + (on ? ' on' : '') + '" onclick="toggleMeal(\'' + dk + '\',' + i + ',this)">' +
       '<div class="chk' + (on ? ' on' : '') + '">' + (on ? CHK_SVG : '') + '</div>' +
@@ -1223,7 +1347,7 @@ function toggleMeal(dk, i, el) {
   const turningOn = !day.meals[i];
   if (turningOn) day.meals[i] = 1; else delete day.meals[i];
   // keep logged kcal in sync with the checklist; manual edits still override
-  const plan = DAYPLAN[todayDow()];
+  const plan = DAYPLAN[dowOf(dk)];
   const sum = plan.meals.reduce((s, m, j) => s + (day.meals[j] && m.k ? m.k : 0), 0);
   day.cal = sum || null;
   persist();
@@ -1300,7 +1424,7 @@ function toggleLift(dk, i, el) {
   const turningOn = !day.lifts[i];
   if (turningOn) day.lifts[i] = 1; else delete day.lifts[i];
   persist();
-  const plan = DAYPLAN[todayDow()];
+  const plan = DAYPLAN[dowOf(dk)];
   if (turningOn && el) burst(el.querySelector('.chk') || el);
   renderWorkout(dk, plan);
   updateRings();
@@ -1350,7 +1474,7 @@ function refreshScore(dk) {
 }
 
 function onCalInput(val, tCal) {
-  const dk  = todayKey();
+  const dk  = selKey();
   const day = getDay(dk);
   const n   = val ? parseInt(val) : null;
   day.cal   = n;
@@ -1363,7 +1487,7 @@ function onCalInput(val, tCal) {
 }
 
 function saveTodayField(field, val) {
-  const day = getDay(todayKey());
+  const day = getDay(selKey());
   day[field] = val;
   persist();
 }
@@ -1371,10 +1495,10 @@ function saveTodayField(field, val) {
 // ─────────────────────────────────────────────────────────────────
 // WEEK SCREEN
 // ─────────────────────────────────────────────────────────────────
-let viewWn = todayWn();
+let viewWn = Math.max(todayWn(), 1);
 
 function changeWeek(dir) {
-  viewWn = Math.max(1, viewWn + dir);
+  viewWn = viewWn + dir;   // free navigation — weeks before W1 show as W0, W-1, ...
   renderWeek();
 }
 
@@ -1422,7 +1546,8 @@ function renderWeek() {
     '<div class="wg-cell wg-hdr wg-lbl"></div>';
   ds.forEach((d, i) => {
     const isToday = dks[i] === tk;
-    html += '<div class="wg-cell wg-hdr' + (isToday ? ' wg-today' : '') + '">' + d + '</div>';
+    html += '<div class="wg-cell wg-hdr' + (isToday ? ' wg-today' : '') + '" style="cursor:pointer;" ' +
+      'onclick="setSelDate(new Date(\'' + dks[i] + 'T12:00:00\'))">' + d + '</div>';
   });
   html += '</div>';
 
@@ -1499,7 +1624,7 @@ function toggleRun(dk, el) {
   persist();
   if (turningOn && el) burst(el.querySelector('.chk') || el);
   renderWeek();
-  if (dk === todayKey()) updateRings();
+  if (dk === selKey()) updateRings();
   if (turningOn) {
     const chk = document.querySelector('#run-card .run-row[onclick*="' + dk + '"] .chk');
     if (chk) chk.classList.add('anim');
@@ -1594,7 +1719,7 @@ function renderProgress() {
 
   if (latest) {
     const rem = (latest.weight - settings.goalWeight).toFixed(1);
-    document.getElementById('prog-rem').textContent = rem > 0 ? rem + ' kg ' + t('to_goal') : '🎯 ' + t('goal_reached');
+    document.getElementById('prog-rem').textContent = rem > 0 ? rem + ' kg ' + t('to_goal') : t('goal_reached');
   } else {
     document.getElementById('prog-rem').textContent = '';
   }
@@ -1622,7 +1747,7 @@ function renderWeightChart(entries) {
   const expPath = expPts.map((p,i) => (i===0?'M ':'L ') + sx(p.x).toFixed(1) + ' ' + sy(p.w).toFixed(1)).join(' ');
 
   // Actual entries positioned by fraction of program elapsed
-  const ms0 = W1_START.getTime();
+  const ms0 = w1Start().getTime();
   const wkMs = 604800000;
   const aPts = entries.map(e => {
     const d = new Date(e.dk + 'T12:00:00');
@@ -1700,6 +1825,61 @@ function renderCompChart() {
 function openModal(id)  { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
+// ─────────────────────────────────────────────────────────────────
+// CALENDAR — month view with relative week numbers; tap a day to edit
+// ─────────────────────────────────────────────────────────────────
+let calMonth = new Date(selDate.getFullYear(), selDate.getMonth(), 1);
+
+function openCal() {
+  calMonth = new Date(selDate.getFullYear(), selDate.getMonth(), 1);
+  renderCal();
+  openModal('cal-modal');
+}
+function calNav(dir) {
+  calMonth.setMonth(calMonth.getMonth() + dir);
+  renderCal();
+}
+function pickCalDay(y, m, d) {
+  closeModal('cal-modal');
+  setSelDate(new Date(y, m, d));
+}
+function renderCal() {
+  const ds = L[lang].dshort;
+  document.getElementById('cal-title').textContent =
+    calMonth.toLocaleDateString(lang === 'en' ? 'en-GB' : 'es-ES', {month:'long', year:'numeric'}).toUpperCase();
+
+  const first = new Date(calMonth.getFullYear(), calMonth.getMonth(), 1);
+  const gridStart = getWeekStart(first);
+  const tk = todayKey(), sk = selKey();
+  const pStart = w1Start(), pEnd = progEnd();
+
+  let html = '<div class="calwk"><div class="calwn">W</div>' +
+    ds.map(d => '<div class="calhd">' + d.charAt(0).toUpperCase() + '</div>').join('') + '</div>';
+
+  const last = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 0);
+  const cur = new Date(gridStart);
+  do {
+    const wn = dateToWn(cur);
+    html += '<div class="calwk"><div class="calwn">' +
+      (wn >= 1 && wn <= PROGRAM.weeks ? 'W' + wn : '') + '</div>';
+    for (let i = 0; i < 7; i++) {
+      const dk = dkey(cur);
+      const inProg = cur >= pStart && cur <= pEnd;
+      html += '<div class="calcell' +
+        (cur.getMonth() !== calMonth.getMonth() ? ' out' : '') +
+        (inProg ? ' prog' : '') +
+        (dk === tk ? ' today' : '') +
+        (dk === sk ? ' sel' : '') + '" ' +
+        'onclick="pickCalDay(' + cur.getFullYear() + ',' + cur.getMonth() + ',' + cur.getDate() + ')">' +
+        '<span>' + cur.getDate() + '</span>' +
+        '<span class="caldot" style="' + (isActiveDay(dk) ? '' : 'visibility:hidden;') + '"></span></div>';
+      cur.setDate(cur.getDate() + 1);
+    }
+    html += '</div>';
+  } while (cur <= last);
+  document.getElementById('cal-grid').innerHTML = html;
+}
+
 function saveBodyEntry() {
   const w  = parseFloat(document.getElementById('bm-w').value);
   const wa = parseFloat(document.getElementById('bm-wa').value);
@@ -1735,7 +1915,7 @@ const QP = {
 
 function computeInsights() {
   const out = [];
-  const wn = Math.min(todayWn(), PROGRAM.weeks);
+  const wn = Math.min(Math.max(todayWn(), 1), PROGRAM.weeks);
   const dks = getWeekKeys(wn);
 
   // Budget insight
@@ -1745,7 +1925,7 @@ function computeInsights() {
   const expectedShare = PROGRAM.weekBudget * (elapsed / 7);
   if (consumed > 0) {
     const hot = consumed > expectedShare * 1.05;
-    out.push({t: hot ? 'a' : 'g', icon: hot ? '⚠️' : '✅',
+    out.push({t: hot ? 'a' : 'g', icon: hot ? 'alert' : 'check',
       title: hot ? t('ins_budget_hot') : t('ins_budget_ok'),
       body: consumed.toLocaleString() + ' / ' + PROGRAM.weekBudget.toLocaleString() + ' kcal · W' + wn});
   }
@@ -1757,19 +1937,21 @@ function computeInsights() {
     const expIdx = Math.min(Math.max(latest.wn, 1), PROGRAM.weeks) - 1;
     const exp = PROGRAM.expected[expIdx];
     const d = latest.weight - exp;
-    out.push({t: d <= 0.3 ? 'g' : 'a', icon: d <= 0.3 ? '📉' : '📈',
+    out.push({t: d <= 0.3 ? 'g' : 'a', icon: d <= 0.3 ? 'trenddown' : 'trendup',
       title: d <= 0.3 ? t('ins_weight_ahead') : t('ins_weight_behind'),
       body: latest.weight + ' kg ' + t('actual').toLowerCase() + ' · ' + exp + ' kg ' + t('expected').toLowerCase() + ' (W' + Math.min(latest.wn, PROGRAM.weeks) + ')'});
   } else {
-    out.push({t:'a', icon:'⚖️', title: t('ins_weigh_in'),
+    out.push({t:'a', icon:'scalemini', title: t('ins_weigh_in'),
       body: lang === 'en' ? 'Same day, morning, after toilet, before food.' : 'Mismo día, por la mañana, después del baño, antes de comer.'});
   }
   return out;
 }
 
 function renderPlan() {
+  const _pf = d => d.toLocaleDateString(lang === 'en' ? 'en-GB' : 'es-ES', {day:'numeric', month:'short'}).toUpperCase().replace('.','');
   document.getElementById('program-dates').textContent =
-    (lang === 'en' ? '7 JUN → 3 JUL 2026 · THEN STOCKHOLM' : '7 JUN → 3 JUL 2026 · LUEGO ESTOCOLMO');
+    _pf(w1Start()) + ' → ' + _pf(progEnd()) + ' ' + progEnd().getFullYear() +
+    (lang === 'en' ? ' · THEN STOCKHOLM' : ' · LUEGO ESTOCOLMO');
   document.getElementById('program-illus').innerHTML = illus('spark');
 
   document.getElementById('rules-card').innerHTML = L[lang].rules.map((r, i) =>
@@ -1777,7 +1959,9 @@ function renderPlan() {
   ).join('');
 
   document.getElementById('insights-wrap').innerHTML = computeInsights().map(ins =>
-    '<div class="ins-card ' + ins.t + '"><div class="ins-t">' + ins.icon + ' ' + ins.title + '</div><div class="ins-b">' + ins.body + '</div></div>'
+    '<div class="ins-card ' + ins.t + '"><div class="ins-t">' +
+    '<span style="color:' + ({g:'var(--green)', a:'var(--amber)', r:'var(--red)'}[ins.t] || 'var(--accent)') + ';">' + cicon(ins.icon, 14) + '</span> ' +
+    ins.title + '</div><div class="ins-b">' + ins.body + '</div></div>'
   ).join('');
 
   document.getElementById('quick-prompts').innerHTML = QP[lang].map(p =>
@@ -1810,7 +1994,7 @@ function goalContext() {
     if (DAYPLAN[d].mode === 'permissive') permissiveDays.push(dnames[d]);
   }
   return 'GOAL (the entire plan below is derived from this):\n' +
-    '- Type: fat loss. Reach ' + GOAL.deadline + ' with ~' + GOAL.fatKg[0] + '-' + GOAL.fatKg[1] +
+    '- Type: fat loss. Reach ' + dkey(progEnd()) + ' with ~' + GOAL.fatKg[0] + '-' + GOAL.fatKg[1] +
     ' kg less body FAT (' + GOAL.scaleKg[0] + '-' + GOAL.scaleKg[1] + ' kg on the scale incl. week-1 water), muscle kept. After: ' + GOAL.after + '.\n\n' +
     'MEAL PLAN SEMANTICS (constraints behind the menu, not a rigid list):\n' +
     '- "office" items are tied to office days (' + officeDays.join('/') + '): salmon + rice is the office lunch — only fits days the user is at the office.\n' +
@@ -1905,6 +2089,7 @@ function renderSettingsForm() {
   document.getElementById('s-calmax').value = settings.calMax;
   document.getElementById('s-prot').value   = settings.protein;
   document.getElementById('s-goal').value   = settings.goalWeight;
+  document.getElementById('s-start').value  = settings.startDate || '2026-06-07';
   document.getElementById('s-apikey').value = apiKey;
 }
 
@@ -1913,7 +2098,9 @@ function saveSettings() {
   settings.calMax     = parseInt(document.getElementById('s-calmax').value)   || 2450;
   settings.protein    = parseInt(document.getElementById('s-prot').value)     || 160;
   settings.goalWeight = parseFloat(document.getElementById('s-goal').value)   || 83.5;
+  settings.startDate  = document.getElementById('s-start').value || '2026-06-07';
   localStorage.setItem('lt_settings', JSON.stringify(settings));
+  viewWn = Math.max(todayWn(), 1);
   alert(lang === 'en' ? '✓ Settings saved' : '✓ Ajustes guardados');
 }
 
@@ -1957,10 +2144,11 @@ function importData(input) {
 // BOOT
 // ─────────────────────────────────────────────────────────────────
 seedHistory();            // no-op if DB already exists in localStorage
-viewWn = todayWn();       // week view starts on current program week
+viewWn = Math.max(todayWn(), 1);  // week view starts on current program week
 applyI18n();
 renderToday();
 document.getElementById('version-tag').textContent = 'LEANTRACKER ' + APP_VERSION;
+document.getElementById('cal-btn').innerHTML = cicon('calendar', 13);
 
 // dismiss the boot sequence once the first paint is in
 setTimeout(() => {
