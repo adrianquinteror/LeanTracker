@@ -302,6 +302,7 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
 .chip.c-home{border-color:rgba(62,242,165,.25);color:var(--green);}
 .chip.c-flex{border-color:rgba(167,139,250,.3);color:var(--violet);}
 .chip.c-indulgent{border-color:rgba(232,121,249,.3);color:var(--fuchsia);}
+.flbl{font-size:11px;color:var(--text2);display:block;margin-bottom:4px;}
 
 /* BOOT SEQUENCE */
 #boot{position:fixed;inset:0;background:var(--bg);z-index:500;display:flex;flex-direction:column;
@@ -412,7 +413,8 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
   <div class="card hero" id="hero-card"></div>
   <div class="shdr"><span class="shdr-t" data-k="targets"></span></div>
   <div class="card"><div class="tgrid" id="tgrid"></div></div>
-  <div class="shdr"><span class="shdr-t" data-k="meal_plan"></span><span class="badge" id="meal-badge">—</span></div>
+  <div id="noplan-today" style="display:none;"></div>
+  <div class="shdr" id="meal-shdr"><span class="shdr-t" data-k="meal_plan"></span><span class="badge" id="meal-badge">—</span></div>
   <div class="hlist" id="meal-list"></div>
   <div class="shdr"><span class="shdr-t" data-k="todays_habits"></span><span class="badge" id="score-badge">—</span></div>
   <div class="hlist" id="hlist"></div>
@@ -506,9 +508,10 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
       </div>
       <div class="illus-side" id="program-illus"></div>
     </div>
-    <div style="font-size:12px;color:var(--text2);margin-top:9px;line-height:1.5;position:relative;z-index:1;" data-k="program_goal"></div>
+    <div style="font-size:12px;color:var(--text2);margin-top:9px;line-height:1.5;position:relative;z-index:1;" id="program-goal"></div>
+    <div id="program-cta" style="position:relative;z-index:1;"></div>
   </div>
-  <div class="shdr"><span class="shdr-t" data-k="the_rules"></span></div>
+  <div class="shdr" id="rules-shdr"><span class="shdr-t" data-k="the_rules"></span></div>
   <div class="card" id="rules-card"></div>
   <div class="shdr"><span class="shdr-t" data-k="insights"></span></div>
   <div id="insights-wrap"></div>
@@ -543,6 +546,15 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
     <div style="margin-bottom:11px;"><label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;" data-k="program_start"></label>
       <input class="inp" id="s-start" type="date" style="margin:0;"></div>
     <button class="mbtn" onclick="saveSettings()"><span data-k="save"></span></button>
+  </div>
+  <div class="shdr"><span class="shdr-t" data-k="plan_section"></span></div>
+  <div class="card">
+    <div style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:10px;" id="plan-status"></div>
+    <button class="mbtn" onclick="document.getElementById('plan-imp').click()"><span data-k="import_plan"></span></button>
+    <input id="plan-imp" type="file" accept=".json" style="display:none;" onchange="importPlanFile(this)">
+    <button class="mbtn" style="margin-top:8px;background:var(--bg3);color:var(--text);border:1px solid var(--border2);box-shadow:none;" onclick="exportPlan()"><span data-k="export_plan"></span></button>
+    <button class="mbtn" style="margin-top:8px;" onclick="openGenModal()"><span data-k="generate_plan"></span></button>
+    <button class="mbtn" style="margin-top:8px;background:var(--red-dim);color:var(--red);border:1px solid rgba(255,84,112,.35);box-shadow:none;" onclick="resetPlan()"><span data-k="reset_plan"></span></button>
   </div>
   <div class="shdr"><span class="shdr-t" data-k="claude_access"></span></div>
   <div class="card">
@@ -610,6 +622,50 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
   </div>
 </div>
 
+<!-- PLAN PREVIEW MODAL -->
+<div class="modal-ov" id="plan-modal" onclick="if(event.target===this)closeModal('plan-modal')">
+  <div class="modal">
+    <div class="modal-h"></div>
+    <div class="modal-t grad-text" data-k="preview_title"></div>
+    <div id="plan-prev" style="font-size:12.5px;color:var(--text2);line-height:1.8;margin-bottom:12px;"></div>
+    <button class="mbtn" onclick="confirmPlan()"><span data-k="apply_plan"></span></button>
+    <button class="mbtn" style="margin-top:8px;background:var(--bg3);color:var(--text);border:1px solid var(--border2);box-shadow:none;" onclick="closeModal('plan-modal')"><span data-k="cancel"></span></button>
+  </div>
+</div>
+
+<!-- GENERATE PLAN MODAL -->
+<div class="modal-ov" id="gen-modal" onclick="if(event.target===this)closeModal('gen-modal')">
+  <div class="modal">
+    <div class="modal-h"></div>
+    <div class="modal-t grad-text" data-k="gen_title"></div>
+    <label class="flbl" data-k="g_goal"></label>
+    <select class="inp" id="g-goal">
+      <option value="fat_loss" data-k="g_fat"></option>
+      <option value="maintain" data-k="g_maintain"></option>
+      <option value="muscle" data-k="g_muscle"></option>
+    </select>
+    <div style="display:flex;gap:8px;">
+      <div style="flex:1;"><label class="flbl" data-k="g_target"></label><input class="inp" id="g-target" type="number" step="0.5" value="2"></div>
+      <div style="flex:1;"><label class="flbl" data-k="g_deadline"></label><input class="inp" id="g-deadline" type="date"></div>
+    </div>
+    <label class="flbl" data-k="g_office"></label>
+    <div id="g-office" style="display:flex;gap:5px;margin-bottom:9px;"></div>
+    <div style="display:flex;gap:8px;">
+      <div style="flex:1;"><label class="flbl" data-k="g_train"></label><input class="inp" id="g-train" type="number" min="0" max="7" value="3"></div>
+      <div style="flex:1;"><label class="flbl" data-k="g_style"></label>
+        <select class="inp" id="g-style">
+          <option value="mixed" data-k="g_mixed"></option>
+          <option value="lifts" data-k="g_lifts"></option>
+          <option value="run" data-k="g_run"></option>
+        </select></div>
+    </div>
+    <label class="flbl" data-k="g_notes"></label>
+    <textarea class="inp" id="g-notes" rows="2" style="resize:none;"></textarea>
+    <button class="mbtn" onclick="genPlan()"><span data-k="g_go"></span></button>
+    <div class="ai-box" id="gen-box" style="margin:10px 0 0;"></div>
+  </div>
+</div>
+
 <!-- BODY MODAL -->
 <div class="modal-ov" id="body-modal" onclick="if(event.target===this)closeModal('body-modal')">
   <div class="modal">
@@ -640,7 +696,7 @@ en:{
   weigh_ins:'Weekly weigh-ins', actual:'Actual', expected:'Expected',
   weekly_compliance:'Weekly compliance %',
   insights:'Your insights', ask_claude:'Ask Claude', ask_btn:'Ask Claude ↗',
-  the_rules:'The three rules', program_goal:'Goal: −3 to −3.8 kg on the scale (~2–2.3 kg real fat + week-1 water). Kept, not regained.',
+  the_rules:'The rules',
   settings:'Settings', your_targets:'Your targets', cal_range:'Calorie range (kcal)',
   protein_target:'Protein target (g)', goal_weight_s:'Goal weight (kg)', save:'Save',
   claude_access:'Claude access', api_key:'Anthropic API key',
@@ -667,11 +723,21 @@ en:{
   meals_done:'ALL MEALS LOGGED ✦', habits_done:'ALL HABITS CRUSHED ✦', workout_done:'WORKOUT COMPLETE ✦',
   runs_done:'ALL RUNS LOGGED ✦', habit_radar:'Habit radar',
   program_start:'Program start (week 1)', cal_logged:'logged', cal_program:'program week',
-  rules:[
-    'Week 2 will stall — hold the line, do not cut calories. Adjusting UP if ravenous/sleeping badly is winning.',
-    'Weekends: anchor breakfast first, ONE indulgent meal, drinks decided sober before going out.',
-    'Keep lifts heavy — if bench/squat/row hold while the scale drops, the loss is fat, not muscle.'
-  ],
+  baseline_t:'Tracking', baseline_sub:'baseline · no plan yet', baseline_big:'BASELINE',
+  plan_section:'Plan', import_plan:'Import plan JSON', export_plan:'Export plan JSON',
+  generate_plan:'Generate with Claude', reset_plan:'Reset plan',
+  plan_active:'Active plan', plan_none:'No plan — baseline mode',
+  noplan_title:'No plan yet',
+  noplan_body:'Track your days first — habits, calories, weigh-ins. With 2–4 weeks of context, a generated plan fits you far better. Already have one? Import it.',
+  days_logged:'days logged', noplan_hint:'14+ recommended before generating',
+  apply_plan:'Apply plan', cancel:'Cancel', plan_loaded:'PLAN LOADED ✦', plan_removed:'PLAN REMOVED',
+  reset_q:'Remove the active plan? Tracked data stays.',
+  preview_title:'Plan preview', weeks_w:'weeks',
+  gen_title:'Generate plan', g_goal:'Goal', g_fat:'Fat loss', g_maintain:'Maintain', g_muscle:'Build muscle',
+  g_target:'Target change (kg)', g_deadline:'Deadline', g_office:'Office days',
+  g_train:'Training days / week', g_style:'Training style', g_lifts:'Lifts', g_run:'Running', g_mixed:'Mixed',
+  g_notes:'Constraints / preferences', g_go:'Generate', gen_wait:'Designing your plan…',
+  invalid_plan:'Invalid plan:', tk_noplan:'BASELINE',
   ins_budget_ok:'Budget on track', ins_budget_hot:'Budget running hot',
   ins_weight_ahead:'Ahead of schedule', ins_weight_behind:'Behind expected curve', ins_weigh_in:'Log a weigh-in',
 },
@@ -687,7 +753,7 @@ es:{
   weigh_ins:'Pesajes semanales', actual:'Real', expected:'Esperado',
   weekly_compliance:'% Cumplimiento semanal',
   insights:'Tus insights', ask_claude:'Pregunta a Claude', ask_btn:'Preguntar ↗',
-  the_rules:'Las tres reglas', program_goal:'Meta: −3 a −3.8 kg en báscula (~2–2.3 kg de grasa real + agua de la semana 1). Mantenido, no recuperado.',
+  the_rules:'Las reglas',
   settings:'Ajustes', your_targets:'Tus objetivos', cal_range:'Rango calorías (kcal)',
   protein_target:'Proteína objetivo (g)', goal_weight_s:'Peso meta (kg)', save:'Guardar',
   claude_access:'Acceso a Claude', api_key:'Clave API de Anthropic',
@@ -714,16 +780,26 @@ es:{
   meals_done:'COMIDAS COMPLETAS ✦', habits_done:'HÁBITOS COMPLETOS ✦', workout_done:'ENTRENO COMPLETO ✦',
   runs_done:'CARRERAS COMPLETAS ✦', habit_radar:'Radar de hábitos',
   program_start:'Inicio del programa (semana 1)', cal_logged:'registrado', cal_program:'semana del programa',
-  rules:[
-    'La semana 2 se estancará — aguanta, no recortes calorías. Subirlas si tienes hambre voraz o duermes mal es ganar.',
-    'Fines de semana: ancla el desayuno primero, UNA comida libre, bebidas decididas sobrio antes de salir.',
-    'Mantén los pesos pesados — si banca/sentadilla/remo aguantan mientras baja la báscula, pierdes grasa, no músculo.'
-  ],
+  baseline_t:'Registro', baseline_sub:'base · aún sin plan', baseline_big:'BASE',
+  plan_section:'Plan', import_plan:'Importar plan JSON', export_plan:'Exportar plan JSON',
+  generate_plan:'Generar con Claude', reset_plan:'Quitar plan',
+  plan_active:'Plan activo', plan_none:'Sin plan — modo base',
+  noplan_title:'Aún sin plan',
+  noplan_body:'Registra tus días primero — hábitos, calorías, pesajes. Con 2–4 semanas de contexto, el plan generado se ajusta mucho mejor. ¿Ya tienes uno? Impórtalo.',
+  days_logged:'días registrados', noplan_hint:'14+ recomendados antes de generar',
+  apply_plan:'Aplicar plan', cancel:'Cancelar', plan_loaded:'PLAN CARGADO ✦', plan_removed:'PLAN ELIMINADO',
+  reset_q:'¿Quitar el plan activo? Tus datos registrados se conservan.',
+  preview_title:'Vista previa del plan', weeks_w:'semanas',
+  gen_title:'Generar plan', g_goal:'Meta', g_fat:'Perder grasa', g_maintain:'Mantener', g_muscle:'Ganar músculo',
+  g_target:'Cambio objetivo (kg)', g_deadline:'Fecha límite', g_office:'Días de oficina',
+  g_train:'Días de entreno / semana', g_style:'Estilo de entreno', g_lifts:'Pesas', g_run:'Carrera', g_mixed:'Mixto',
+  g_notes:'Restricciones / preferencias', g_go:'Generar', gen_wait:'Diseñando tu plan…',
+  invalid_plan:'Plan inválido:', tk_noplan:'BASE',
   ins_budget_ok:'Presupuesto en orden', ins_budget_hot:'Presupuesto justo',
   ins_weight_ahead:'Adelantado al plan', ins_weight_behind:'Detrás de la curva', ins_weigh_in:'Registra un pesaje',
 }};
 
-const APP_VERSION = 'v5.0';  // bump on release — shown in Settings so a stale cache is easy to spot
+const APP_VERSION = 'v6.0';  // bump on release — shown in Settings so a stale cache is easy to spot
 
 const HKEYS = ['alcohol','dulce','agua','cal','macros','training','sleep','phone'];
 
@@ -829,24 +905,6 @@ const ILLUS_FN = {
 };
 function illus(name) { return ILLUS_FN[name]('ilg' + (++_ilc)); }
 
-// ─────────────────────────────────────────────────────────────────
-// GOAL — what the whole plan is derived from.
-// The current plan mirrors the cut tracker sheet exactly; when the
-// goal changes, a new plan is generated within MEAL CONSTRAINTS
-// (see goalContext(), which feeds this to Claude).
-// ─────────────────────────────────────────────────────────────────
-const GOAL = {
-  id: 'cut-2026-07',
-  type: 'fat_loss',
-  deadline: '2026-07-03',
-  fatKg: [2, 2.3],          // real fat to lose
-  scaleKg: [3, 3.8],        // scale drop incl. week-1 water
-  keepMuscle: true,
-  after: 'maintain through Stockholm trip',
-  title: {en:'−2 KG FAT', es:'−2 KG GRASA'},
-  sub: {en:'by 3 Jul 2026 · muscle kept · then Stockholm', es:'para el 3 jul 2026 · músculo intacto · luego Estocolmo'},
-};
-
 // Meal context tags — semantics behind each plan item:
 //   office    → tied to office days (salmon + rice office lunch)
 //   home      → belongs to home days (eggs, home salmon bowls)
@@ -880,18 +938,22 @@ function cicon(name, size) {
     'xmlns="http://www.w3.org/2000/svg">' + CICON_FN[name] + '</svg>';
 }
 
-// ─────────────────────────────────────────────────────────────────
-// PROGRAM DATA — "THE CUT" · 7 Jun → 3 Jul 2026 (from cut tracker sheet)
-// Weeks run Sunday → Saturday. Week 1 starts Sun 7 Jun 2026.
-// ─────────────────────────────────────────────────────────────────
-const PROGRAM = {
+// ───────────────────────────────────────────────────────────────
+// PLAN — the program is DATA, stored in localStorage ('lt_plan').
+// DEFAULT_PLAN is the original cut-tracker program; it is auto-migrated
+// into storage for existing installs. Fresh installs start plan-less
+// (observation mode) until a plan is imported or generated.
+// ───────────────────────────────────────────────────────────────
+const DEFAULT_PLAN = {
+  schema: 1,
   name: 'THE CUT',
-  startY: 2026, startM: 5, startD: 7,     // Sun 7 Jun 2026 (local time)
-  endY: 2026, endM: 6, endD: 3,           // Fri 3 Jul 2026
+  startDate: '2026-06-07',                // W1 = the week containing this date
   weeks: 4,
-  startWeight: 87,
-  expected: [85.3, 84.7, 84.1, 83.5],     // expected kg at end of W1..W4
+  progDays: 27,                            // Sun start → Fri end
   weekBudget: 15410,                       // kcal per week (targets + weekend caps)
+  startWeight: 87,
+  goalWeight: 83.5,
+  expected: [85.3, 84.7, 84.1, 83.5],     // expected kg at end of W1..W4
   // Planned runs per program week, km — keyed by dow (0=Sun..6=Sat)
   runs: [
     {1:9, 6:12, 0:9},    // W1: Mon 9 · Sat 12 · Sun 9  (30 km)
@@ -899,14 +961,32 @@ const PROGRAM = {
     {1:11, 6:14, 0:12},  // W3: Mon 11 · Sat 14 · Sun 12 (37 km)
     {1:11, 6:13, 0:11},  // W4: Mon 11 · Sat 13 · Sun 11 (35 km)
   ],
-};
-
-// Daily plan keyed by dow (0=Sun..6=Sat).
-// Items mirror the cut tracker sheet exactly; each carries a context
-// tag (c:) so the plan can be regenerated for a different goal without
-// losing its semantics — see CTXCHIP above and goalContext() below.
-//   where: where the day is spent · mode: strict target vs permissive cap
-const DAYPLAN = {
+  goal: {
+    type: 'fat_loss',
+    fatKg: [2, 2.3],          // real fat to lose
+    scaleKg: [3, 3.8],        // scale drop incl. week-1 water
+    keepMuscle: true,
+    after: 'maintain through Stockholm trip',
+    title: {en:'−2 KG FAT', es:'−2 KG GRASA'},
+    sub: {en:'by 3 Jul 2026 · muscle kept · then Stockholm', es:'para el 3 jul 2026 · músculo intacto · luego Estocolmo'},
+    desc: {en:'Goal: −3 to −3.8 kg on the scale (~2–2.3 kg real fat + week-1 water). Kept, not regained.',
+           es:'Meta: −3 a −3.8 kg en báscula (~2–2.3 kg de grasa real + agua de la semana 1). Mantenido, no recuperado.'},
+  },
+  rules: {
+    en: [
+      'Week 2 will stall — hold the line, do not cut calories. Adjusting UP if ravenous/sleeping badly is winning.',
+      'Weekends: anchor breakfast first, ONE indulgent meal, drinks decided sober before going out.',
+      'Keep lifts heavy — if bench/squat/row hold while the scale drops, the loss is fat, not muscle.'
+    ],
+    es: [
+      'La semana 2 se estancará — aguanta, no recortes calorías. Subirlas si tienes hambre voraz o duermes mal es ganar.',
+      'Fines de semana: ancla el desayuno primero, UNA comida libre, bebidas decididas sobrio antes de salir.',
+      'Mantén los pesos pesados — si banca/sentadilla/remo aguantan mientras baja la báscula, pierdes grasa, no músculo.'
+    ]
+  },
+  // Daily plans keyed by dow (0=Sun..6=Sat); meals carry context tags
+  // (c:) so a new plan can be generated within the same constraints.
+  days: {
   0: { illus:'runfree', where:'home', mode:'permissive',
        focus:{en:'Run',es:'Carrera'}, tag:{en:'one indulgent meal · cap 2450',es:'una comida libre · tope 2450'}, cal:2450, isCap:true,
        meals:[{n:'2x Skyr',k:320,c:'any'},{n:'Oats 50g + milk',k:280,c:'any'},{n:'Banana',k:105,c:'any'},
@@ -939,7 +1019,44 @@ const DAYPLAN = {
        focus:{en:'Run / Cycle',es:'Carrera / Bici'}, tag:{en:'one indulgent meal · cap 2450',es:'una comida libre · tope 2450'}, cal:2450, isCap:true,
        meals:[{n:'2x Skyr',k:320,c:'any'},{n:'Oats 50g + milk',k:280,c:'any'},{n:'Banana',k:105,c:'any'},
               {n:'3 eggs scrambled',k:220,c:'home'},{n:'__INDULGENT__',k:null,c:'indulgent'}] },
+  },
 };
+
+// Active plan state — hydrated by loadPlan() at boot
+let PLAN = null, PROGRAM = null, DAYPLAN = null, GOAL = null;
+
+function hasPlan() { return !!PLAN; }
+function applyPlan() {
+  if (PLAN) {
+    DAYPLAN = PLAN.days;
+    GOAL    = PLAN.goal;
+    PROGRAM = {name: PLAN.name, weeks: PLAN.weeks, weekBudget: PLAN.weekBudget,
+               runs: PLAN.runs, expected: PLAN.expected, startWeight: PLAN.startWeight};
+    PROG_DAYS = PLAN.progDays || PLAN.weeks * 7 - 1;
+  } else {
+    DAYPLAN = null; GOAL = null; PROGRAM = null; PROG_DAYS = 27;
+  }
+}
+function loadPlan() {
+  let p = JSON.parse(localStorage.getItem('lt_plan') || 'null');
+  // auto-migrate: an existing install (has a tracking store) keeps the
+  // built-in cut plan; truly fresh installs start in observation mode
+  if (!p && localStorage.getItem('lt_db') !== null) {
+    p = JSON.parse(JSON.stringify(DEFAULT_PLAN));
+    if (settings.startDate) p.startDate = settings.startDate;
+    localStorage.setItem('lt_plan', JSON.stringify(p));
+  }
+  PLAN = p;
+  applyPlan();
+}
+function savePlan(p) {
+  PLAN = p;
+  localStorage.setItem('lt_plan', JSON.stringify(p));
+  if (p.goalWeight) settings.goalWeight = p.goalWeight;
+  if (p.startDate)  settings.startDate  = p.startDate;
+  localStorage.setItem('lt_settings', JSON.stringify(settings));
+  applyPlan();
+}
 
 // ─────────────────────────────────────────────────────────────────
 // DATE UTILITIES
@@ -950,9 +1067,9 @@ const DAYPLAN = {
 // Week 1 = the calendar week containing the configured program start
 // date (Settings → Program start). Weeks are Sunday-anchored, and any
 // calendar week maps to a relative number (≤0 before the program).
-const PROG_DAYS = 27;                       // Sun start → Fri end, 4 program weeks
+let PROG_DAYS = 27;                          // overwritten by applyPlan()
 function w1Start() {
-  const parts = (settings.startDate || '2026-06-07').split('-').map(Number);
+  const parts = ((PLAN && PLAN.startDate) || settings.startDate || '2026-06-07').split('-').map(Number);
   const d = new Date(parts[0], parts[1] - 1, parts[2]);
   d.setHours(0,0,0,0);
   d.setDate(d.getDate() - d.getDay());      // snap to that week's Sunday
@@ -1089,7 +1206,7 @@ function renderActive() {
 function sIcon(v) { return v===1?'✓':v===0?'✗':v===0.5?'~':'—'; }
 function sCls(v)  { return v===1?'s-pass':v===0?'s-fail':v===0.5?'s-part':'s-none'; }
 
-function dayTarget(dow) { return DAYPLAN[dow].cal; }
+function dayTarget(dow) { return DAYPLAN ? DAYPLAN[dow].cal : (settings.calMax || 2000); }
 
 // ─────────────────────────────────────────────────────────────────
 // MISSION HUD — streak, countdown, micro-reward feedback
@@ -1174,11 +1291,12 @@ function _ringArc(id, r, stroke) {
 }
 function ringStats(dk) {
   const day = getDay(dk);
-  const plan = DAYPLAN[dowOf(dk)];
+  const plan = DAYPLAN ? DAYPLAN[dowOf(dk)] : null;
+  const target = plan ? plan.cal : (settings.calMax || 2000);
   const hk = HKEYS.filter(k => k !== 'cal');
   const hp = hk.filter(k => day.habits[k] === 1).length;
   let train = 0, trainLbl = '—';
-  if (plan.workout) {
+  if (plan && plan.workout) {
     const done = plan.workout.reduce((s, _, i) => s + (day.lifts[i] ? 1 : 0), 0);
     train = done / plan.workout.length;
     trainLbl = done + '/' + plan.workout.length;
@@ -1186,7 +1304,7 @@ function ringStats(dk) {
     train = (day.runDone || day.training) ? 1 : 0;
     trainLbl = train ? '✓' : '—';
   }
-  return {cal: day.cal || 0, target: plan.cal, kcal: Math.min((day.cal || 0) / plan.cal, 1),
+  return {cal: day.cal || 0, target, kcal: Math.min((day.cal || 0) / target, 1),
           habits: hp / hk.length, hp, hkLen: hk.length, train: Math.min(train, 1), trainLbl};
 }
 function updateRings() {
@@ -1206,10 +1324,16 @@ let _tickerLast = '';
 function setTicker() {
   const el = document.getElementById('ticker');
   if (!el) return;
-  const wn = Math.min(Math.max(todayWn(), 1), PROGRAM.weeks);
-  const plan = DAYPLAN[todayDow()];
-  const txt = '» W' + wn + '/' + PROGRAM.weeks + ' ─ ' + plan.focus[lang].toUpperCase() +
-    ' ─ ' + plan.cal + ' KCAL ─ ' + t('streak_w') + ' ' + calcStreak() + 'D ─ T−' + daysLeft() + ' ' + t('dest');
+  let txt;
+  if (hasPlan()) {
+    const wn = Math.min(Math.max(todayWn(), 1), PROGRAM.weeks);
+    const plan = DAYPLAN[todayDow()];
+    txt = '» W' + wn + '/' + PROGRAM.weeks + ' ─ ' + plan.focus[lang].toUpperCase() +
+      ' ─ ' + plan.cal + ' KCAL ─ ' + t('streak_w') + ' ' + calcStreak() + 'D ─ T−' + daysLeft() + ' ' + t('dest');
+  } else {
+    txt = '» ' + t('tk_noplan') + ' ─ ' + (settings.calMax || 2000) + ' KCAL ─ ' +
+      t('streak_w') + ' ' + calcStreak() + 'D';
+  }
   if (_tickerLast === txt) { el.textContent = txt; return; }   // typewriter only when the line changes
   _tickerLast = txt;
   el.textContent = '';
@@ -1220,7 +1344,7 @@ function setTicker() {
   }, 16);
 }
 function runKmFor(wn, dow) {
-  const plan = PROGRAM.runs[wn - 1];
+  const plan = PROGRAM && PROGRAM.runs[wn - 1];
   return plan ? (plan[dow] || 0) : 0;
 }
 
@@ -1231,14 +1355,14 @@ function renderToday() {
   const dow = selDow();
   const wn  = dateToWn(selDate);
   const ds  = L[lang].dshort;
-  const plan = DAYPLAN[dow];
-  const tCal = plan.cal;
-  const runKm = runKmFor(wn, dow);
+  const plan = DAYPLAN ? DAYPLAN[dow] : null;
+  const tCal = plan ? plan.cal : (settings.calMax || 2000);
+  const runKm = plan ? runKmFor(wn, dow) : 0;
 
   document.getElementById('hdr-today').textContent =
     isTodaySel() ? (lang === 'en' ? 'TODAY' : 'HOY') : ds[dow] + ' ' + String(selDate.getDate()).padStart(2,'0');
   document.getElementById('sub-today').textContent =
-    ds[dow] + '  ·  W' + wn + '/' + PROGRAM.weeks + '  ·  ' + fmtDate(selDate) +
+    ds[dow] + '  ·  ' + (plan ? 'W' + wn + '/' + PROGRAM.weeks + '  ·  ' : '') + fmtDate(selDate) +
     (isTodaySel() ? '' : (lang === 'en' ? '  ·  tap title for today' : '  ·  toca el título para hoy'));
   updateStreak();
   setTicker();
@@ -1248,8 +1372,8 @@ function renderToday() {
   document.getElementById('hero-card').innerHTML =
     '<div style="display:flex;align-items:center;gap:12px;position:relative;z-index:1;">' +
       '<div style="flex:1;">' +
-        '<div class="disp hero-focus">' + plan.focus[lang] + (runKm ? ' · ' + runKm + ' KM' : '') + '</div>' +
-        '<div class="hero-tag">' + plan.tag[lang] + '</div>' +
+        '<div class="disp hero-focus">' + (plan ? plan.focus[lang] + (runKm ? ' · ' + runKm + ' KM' : '') : t('baseline_t')) + '</div>' +
+        '<div class="hero-tag">' + (plan ? plan.tag[lang] : t('baseline_sub')) + '</div>' +
         '<div class="hero-kcal" id="hero-kcal"></div>' +
       '</div>' +
       '<div class="ringwrap">' +
@@ -1262,11 +1386,12 @@ function renderToday() {
         _ringArc('hero-arc-h', 34.5, '#3ef2a5') +
         _ringArc('hero-arc-t', 28, '#a78bfa') +
         '</svg>' +
-        '<div class="ring-ic">' + illus(plan.illus) + '</div>' +
+        '<div class="ring-ic">' + illus(plan ? plan.illus : 'spark') + '</div>' +
       '</div>' +
     '</div>' +
     // mission countdown — one segment per program day, today pulsing
     (function () {
+      if (!plan) return '';
       const di = programDayIdx();
       let segs = '';
       for (let i = 0; i < PROG_DAYS; i++) {
@@ -1280,17 +1405,37 @@ function renderToday() {
   document.getElementById('training-inp').placeholder = t('training_placeholder');
 
   document.getElementById('tgrid').innerHTML =
-    '<div class="titem"><div class="titem-val">' + tCal + '</div><div class="titem-lbl">' + (plan.isCap ? t('cap') : t('t_cal')) + '</div></div>' +
+    '<div class="titem"><div class="titem-val">' + tCal + '</div><div class="titem-lbl">' + (plan && plan.isCap ? t('cap') : t('t_cal')) + '</div></div>' +
     '<div class="titem"><div class="titem-val">' + settings.protein + 'g</div><div class="titem-lbl">' + t('t_prot') + '</div></div>' +
     '<div class="titem"><div class="titem-val">' + (runKm ? runKm + 'km' : '—') + '</div><div class="titem-lbl">' + t('t_run') + '</div></div>' +
-    '<div class="titem"><div class="titem-val">' + PROGRAM.weekBudget.toLocaleString() + '</div><div class="titem-lbl">' + t('t_budget') + '</div></div>' +
+    '<div class="titem"><div class="titem-val">' + (plan ? PROGRAM.weekBudget : (settings.calMax || 2000) * 7).toLocaleString() + '</div><div class="titem-lbl">' + t('t_budget') + '</div></div>' +
     '<div class="titem"><div class="titem-val">' + settings.goalWeight + 'kg</div><div class="titem-lbl">' + t('t_goal') + '</div></div>' +
     '<div class="titem"><div class="titem-val">0</div><div class="titem-lbl">' + t('t_alc') + '</div></div>';
 
   const dk  = selKey();
   const day = getDay(dk);
 
-  renderMeals(dk, plan, tCal);
+  const npEl = document.getElementById('noplan-today');
+  const mealShdr = document.getElementById('meal-shdr');
+  const mealList = document.getElementById('meal-list');
+  if (plan) {
+    npEl.style.display = 'none'; npEl.innerHTML = '';
+    mealShdr.style.display = ''; mealList.style.display = '';
+    renderMeals(dk, plan, tCal);
+  } else {
+    mealShdr.style.display = 'none'; mealList.style.display = 'none';
+    npEl.style.display = '';
+    const tracked = Object.keys(DB).filter(isActiveDay).length;
+    npEl.innerHTML =
+      '<div class="card glow" style="text-align:center;">' +
+        '<div style="display:flex;justify-content:center;" class="illus-side">' + illus('target') + '</div>' +
+        '<div class="disp grad-text" style="font-size:16px;letter-spacing:.1em;margin-top:6px;">' + t('noplan_title') + '</div>' +
+        '<div style="font-size:12px;color:var(--text2);margin-top:7px;line-height:1.6;">' +
+          tracked + ' ' + t('days_logged') + ' · ' + t('noplan_hint') + '</div>' +
+        '<button class="mbtn" style="margin-top:12px;" onclick="openGenModal()">' + t('generate_plan') + '</button>' +
+        '<button class="mbtn" style="margin-top:8px;background:var(--bg3);color:var(--text);border:1px solid var(--border2);box-shadow:none;" onclick="showScr(\'settings\')">' + t('import_plan') + '</button>' +
+      '</div>';
+  }
   renderHabits(dk, day, tCal);
   renderWorkout(dk, plan);
   refreshScore(dk);
@@ -1402,7 +1547,7 @@ function renderHabits(dk, day, tCal) {
 
 function renderWorkout(dk, plan) {
   const wrap = document.getElementById('workout-section');
-  if (!plan.workout) { wrap.innerHTML = ''; return; }
+  if (!plan || !plan.workout) { wrap.innerHTML = ''; return; }
   const day = getDay(dk);
   const done = plan.workout.reduce((s,_,i) => s + (day.lifts[i] ? 1 : 0), 0);
   let html = '<div class="shdr"><span class="shdr-t">' + t('workout') + '</span>' +
@@ -1532,13 +1677,14 @@ function renderWeek() {
 
   // Weekly calorie budget (from program: 15,410 kcal incl. weekend caps)
   const consumed = cvals.reduce((a,b)=>a+b,0);
-  const pctB = Math.min((consumed / PROGRAM.weekBudget) * 100, 100);
+  const wkBudget = hasPlan() ? PROGRAM.weekBudget : (settings.calMax || 2000) * 7;
+  const pctB = Math.min((consumed / wkBudget) * 100, 100);
   const bar = document.getElementById('budget-bar');
   bar.style.width = pctB + '%';
-  bar.style.background = consumed > PROGRAM.weekBudget ? 'var(--red)' : 'var(--grad)';
+  bar.style.background = consumed > wkBudget ? 'var(--red)' : 'var(--grad)';
   document.getElementById('budget-badge').textContent = Math.round(pctB) + '%';
   document.getElementById('budget-used').textContent = consumed.toLocaleString() + ' ' + t('used');
-  document.getElementById('budget-left').textContent = Math.max(0, PROGRAM.weekBudget - consumed).toLocaleString() + ' ' + t('left');
+  document.getElementById('budget-left').textContent = Math.max(0, wkBudget - consumed).toLocaleString() + ' ' + t('left');
 
   // Habit grid (Sun → Sat)
   const cols = '78px repeat(7,1fr)';
@@ -1579,7 +1725,7 @@ function renderWeek() {
   renderRadar(dks);
 
   // Running plan for this program week — tap a run to log it; km fill the bar
-  const runPlan = PROGRAM.runs[wn - 1];
+  const runPlan = hasPlan() ? PROGRAM.runs[wn - 1] : null;
   const runCard = document.getElementById('run-card');
   if (runPlan) {
     let totalKm = 0, doneKm = 0;
@@ -1628,7 +1774,7 @@ function toggleRun(dk, el) {
   if (turningOn) {
     const chk = document.querySelector('#run-card .run-row[onclick*="' + dk + '"] .chk');
     if (chk) chk.classList.add('anim');
-    const plan = PROGRAM.runs[viewWn - 1];
+    const plan = PROGRAM && PROGRAM.runs[viewWn - 1];
     if (plan && getWeekKeys(viewWn).every((k, dow) => !plan[dow] || DB[k]?.runDone)) toast(t('runs_done'));
   }
 }
@@ -1699,10 +1845,11 @@ function renderProgress() {
   document.getElementById('goal-banner').innerHTML =
     '<div style="display:flex;align-items:center;gap:12px;position:relative;z-index:1;">' +
       '<div style="flex:1;">' +
-        '<div class="disp hero-focus grad-text" style="font-size:22px;">' + GOAL.title[lang] + '</div>' +
-        '<div class="hero-tag">' + GOAL.sub[lang] + '</div>' +
+        '<div class="disp hero-focus grad-text" style="font-size:22px;">' +
+          (hasPlan() ? (GOAL.title[lang] || GOAL.title.en) : t('baseline_big')) + '</div>' +
+        '<div class="hero-tag">' + (hasPlan() ? (GOAL.sub[lang] || GOAL.sub.en) : t('baseline_sub')) + '</div>' +
       '</div>' +
-      '<div class="illus-side">' + illus('target') + '</div>' +
+      '<div class="illus-side">' + illus(hasPlan() ? 'target' : 'scale') + '</div>' +
     '</div>';
 
   document.getElementById('prog-cw').innerHTML   = latest ? latest.weight + ' <span style="font-size:14px;color:var(--text2);">kg</span>' : '—';
@@ -1734,11 +1881,12 @@ function renderWeightChart(entries) {
   const W=320, H=120, px=26, py=16;
 
   // Expected trajectory: start weight at W1 start, then expected kg at each week's end
-  const expPts = [{x:0, w:PROGRAM.startWeight}];
-  PROGRAM.expected.forEach((w, i) => expPts.push({x:i+1, w}));
-  const maxX = PROGRAM.weeks;
+  const expPts = hasPlan() ? [{x:0, w:PROGRAM.startWeight}] : [];
+  if (hasPlan()) PROGRAM.expected.forEach((w, i) => expPts.push({x:i+1, w}));
+  const maxX = hasPlan() ? PROGRAM.weeks : Math.max(entries.length - 1, 1);
 
-  const allW = expPts.map(p=>p.w).concat(entries.map(e=>e.weight), [settings.goalWeight]);
+  const allW = expPts.map(p=>p.w).concat(entries.map(e=>e.weight), entries.length || hasPlan() ? [settings.goalWeight] : []);
+  if (!allW.length) allW.push(settings.goalWeight);
   const minV = Math.min(...allW) - 0.6;
   const maxV = Math.max(...allW) + 0.6;
   const sx = x => px + (x / maxX) * (W - px*2);
@@ -1746,10 +1894,11 @@ function renderWeightChart(entries) {
 
   const expPath = expPts.map((p,i) => (i===0?'M ':'L ') + sx(p.x).toFixed(1) + ' ' + sy(p.w).toFixed(1)).join(' ');
 
-  // Actual entries positioned by fraction of program elapsed
+  // Actual entries: by program-time fraction (plan) or evenly indexed (baseline)
   const ms0 = w1Start().getTime();
   const wkMs = 604800000;
-  const aPts = entries.map(e => {
+  const aPts = entries.map((e, i) => {
+    if (!hasPlan()) return {x: entries.length > 1 ? i : 0.5, w: e.weight, wn: e.wn};
     const d = new Date(e.dk + 'T12:00:00');
     const x = Math.min(Math.max((d.getTime() - ms0) / wkMs, 0), maxX);
     return {x, w: e.weight, wn: e.wn};
@@ -1760,20 +1909,27 @@ function renderWeightChart(entries) {
     '<text x="' + sx(p.x).toFixed(1) + '" y="' + (sy(p.w)-8).toFixed(1) + '" fill="#aeb8d8" font-size="9" text-anchor="middle">' + p.w + '</text>'
   ).join('');
 
-  const wkLabels = Array.from({length:maxX+1},(_,i) =>
+  const wkLabels = hasPlan() ? Array.from({length:maxX+1},(_,i) =>
     '<text x="' + sx(i).toFixed(1) + '" y="' + (H-2) + '" fill="#465070" font-size="8.5" text-anchor="middle">' + (i===0 ? t('start') : 'W'+i) + '</text>'
+  ).join('') : aPts.map((p, i) =>
+    '<text x="' + sx(p.x).toFixed(1) + '" y="' + (H-2) + '" fill="#465070" font-size="8" text-anchor="middle">' + entries[i].dk.slice(5) + '</text>'
   ).join('');
 
   el.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg">' +
     '<defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="0">' +
     '<stop offset="0" stop-color="#00e5ff"/><stop offset="1" stop-color="#e879f9"/></linearGradient></defs>' +
-    '<path d="' + expPath + '" fill="none" stroke="rgba(167,139,250,0.6)" stroke-width="1.5" stroke-dasharray="5,4"/>' +
+    (expPts.length ? '<path d="' + expPath + '" fill="none" stroke="rgba(167,139,250,0.6)" stroke-width="1.5" stroke-dasharray="5,4"/>' : '') +
     (aPts.length ? '<path d="' + aPath + '" fill="none" stroke="url(#lg)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>' : '') +
     dots + wkLabels + '</svg>' +
     (aPts.length ? '' : '<div class="chart-empty">' + illus('scale') + '<span>' + t('ins_weigh_in') + '</span></div>');
 }
 
 function renderWeighinTable(entries) {
+  if (!hasPlan()) {
+    document.getElementById('weighin-table').innerHTML =
+      '<tr><td style="color:var(--text3);">' + t('plan_none') + '</td></tr>';
+    return;
+  }
   // latest actual weigh-in per program week
   const actualByWn = {};
   entries.forEach(e => { actualByWn[e.wn] = e.weight; });
@@ -1798,7 +1954,7 @@ function renderWeighinTable(entries) {
 
 function renderCompChart() {
   const currentWn = Math.max(todayWn(), 1);
-  const lastWn = Math.max(currentWn, PROGRAM.weeks);
+  const lastWn = Math.max(currentWn, hasPlan() ? PROGRAM.weeks : 1);
   let html = '<div style="display:flex;gap:7px;align-items:flex-end;height:80px;">';
   for (let wn = 1; wn <= lastWn; wn++) {
     let pass = 0, tot = 0;
@@ -1851,6 +2007,7 @@ function renderCal() {
   const first = new Date(calMonth.getFullYear(), calMonth.getMonth(), 1);
   const gridStart = getWeekStart(first);
   const tk = todayKey(), sk = selKey();
+  const hp = hasPlan();
   const pStart = w1Start(), pEnd = progEnd();
 
   let html = '<div class="calwk"><div class="calwn">W</div>' +
@@ -1861,10 +2018,10 @@ function renderCal() {
   do {
     const wn = dateToWn(cur);
     html += '<div class="calwk"><div class="calwn">' +
-      (wn >= 1 && wn <= PROGRAM.weeks ? 'W' + wn : '') + '</div>';
+      (hp && wn >= 1 && wn <= PROGRAM.weeks ? 'W' + wn : '') + '</div>';
     for (let i = 0; i < 7; i++) {
       const dk = dkey(cur);
-      const inProg = cur >= pStart && cur <= pEnd;
+      const inProg = hp && cur >= pStart && cur <= pEnd;
       html += '<div class="calcell' +
         (cur.getMonth() !== calMonth.getMonth() ? ' out' : '') +
         (inProg ? ' prog' : '') +
@@ -1915,6 +2072,21 @@ const QP = {
 
 function computeInsights() {
   const out = [];
+  if (!hasPlan()) {
+    const tracked = Object.keys(DB).filter(isActiveDay).length;
+    out.push({t:'a', icon:'alert', title: t('noplan_title'),
+      body: tracked + ' ' + t('days_logged') + ' · ' + t('noplan_hint')});
+    const we = weightEntries();
+    if (we.length) {
+      const d = (we[we.length-1].weight - we[0].weight).toFixed(1);
+      out.push({t: d <= 0 ? 'g' : 'a', icon: d <= 0 ? 'trenddown' : 'trendup',
+        title: we[we.length-1].weight + ' kg', body: (d > 0 ? '+' : '') + d + ' kg (' + we.length + ')'});
+    } else {
+      out.push({t:'a', icon:'scalemini', title: t('ins_weigh_in'),
+        body: lang === 'en' ? 'Same day, morning, after toilet, before food.' : 'Mismo día, por la mañana, después del baño, antes de comer.'});
+    }
+    return out;
+  }
   const wn = Math.min(Math.max(todayWn(), 1), PROGRAM.weeks);
   const dks = getWeekKeys(wn);
 
@@ -1949,14 +2121,32 @@ function computeInsights() {
 
 function renderPlan() {
   const _pf = d => d.toLocaleDateString(lang === 'en' ? 'en-GB' : 'es-ES', {day:'numeric', month:'short'}).toUpperCase().replace('.','');
-  document.getElementById('program-dates').textContent =
-    _pf(w1Start()) + ' → ' + _pf(progEnd()) + ' ' + progEnd().getFullYear() +
-    (lang === 'en' ? ' · THEN STOCKHOLM' : ' · LUEGO ESTOCOLMO');
-  document.getElementById('program-illus').innerHTML = illus('spark');
-
-  document.getElementById('rules-card').innerHTML = L[lang].rules.map((r, i) =>
-    '<div class="rule"><div class="rule-n">0' + (i+1) + '</div><div class="rule-t">' + r + '</div></div>'
-  ).join('');
+  const rulesCard = document.getElementById('rules-card');
+  const rulesShdr = document.getElementById('rules-shdr');
+  if (hasPlan()) {
+    document.getElementById('program-title').textContent = PROGRAM.name || 'PLAN';
+    document.getElementById('program-dates').textContent =
+      _pf(w1Start()) + ' → ' + _pf(progEnd()) + ' ' + progEnd().getFullYear();
+    document.getElementById('program-goal').textContent = (GOAL.desc && (GOAL.desc[lang] || GOAL.desc.en)) || '';
+    document.getElementById('program-illus').innerHTML = illus('spark');
+    document.getElementById('program-cta').innerHTML = '';
+    const rules = (PLAN.rules && (PLAN.rules[lang] && PLAN.rules[lang].length ? PLAN.rules[lang] : PLAN.rules.en)) || [];
+    rulesShdr.style.display = rules.length ? '' : 'none';
+    rulesCard.style.display = rules.length ? '' : 'none';
+    rulesCard.innerHTML = rules.map((r, i) =>
+      '<div class="rule"><div class="rule-n">0' + (i+1) + '</div><div class="rule-t">' + r + '</div></div>'
+    ).join('');
+  } else {
+    document.getElementById('program-title').textContent = t('baseline_big');
+    document.getElementById('program-dates').textContent = t('baseline_sub');
+    document.getElementById('program-goal').textContent = t('noplan_body');
+    document.getElementById('program-illus').innerHTML = illus('target');
+    document.getElementById('program-cta').innerHTML =
+      '<button class="mbtn" style="margin-top:12px;" onclick="openGenModal()">' + t('generate_plan') + '</button>' +
+      '<button class="mbtn" style="margin-top:8px;background:var(--bg3);color:var(--text);border:1px solid var(--border2);box-shadow:none;" onclick="showScr(\'settings\')">' + t('import_plan') + '</button>';
+    rulesShdr.style.display = 'none';
+    rulesCard.style.display = 'none';
+  }
 
   document.getElementById('insights-wrap').innerHTML = computeInsights().map(ins =>
     '<div class="ins-card ' + ins.t + '"><div class="ins-t">' +
@@ -1984,7 +2174,33 @@ function prefillAsk(p) {
 // Requires an API key (Settings → Claude access) plus the
 // anthropic-dangerous-direct-browser-access header for CORS.
 // ─────────────────────────────────────────────────────────────────
+// Serialize the ACTIVE plan for Claude — works for any imported or
+// generated plan, not just the original cut
+function planContextForClaude() {
+  if (!hasPlan()) return 'NO ACTIVE PLAN — observation/baseline mode.';
+  const dn = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const dayLines = dn.map((n, d) => {
+    const dp = DAYPLAN[d];
+    return n + ': ' + dp.focus.en + ' · ' + (dp.isCap ? 'cap ' : 'target ') + dp.cal + ' kcal' +
+      (dp.workout ? ' · lifts: ' + dp.workout.map(w => w[0]).join(', ') : '');
+  }).join('\n  ');
+  const runLines = PROGRAM.runs.map((wk, i) => 'W' + (i + 1) + ': ' +
+    Object.keys(wk).map(d => dn[d] + ' ' + wk[d] + 'km').join(', ')).join(' · ');
+  return 'ACTIVE PROGRAM "' + PROGRAM.name + '" (' + dkey(w1Start()) + ' to ' + dkey(progEnd()) + ', ' + PROGRAM.weeks + ' weeks):\n' +
+    '- Start weight ' + PROGRAM.startWeight + ' kg. Expected weigh-ins: ' + PROGRAM.expected.map((w, i) => 'W' + (i + 1) + ' ' + w).join(', ') + ' kg.\n' +
+    '- Weekly calorie budget: ' + PROGRAM.weekBudget.toLocaleString('en-US') + ' kcal. Day plans:\n  ' + dayLines + '\n' +
+    '- Running: ' + (runLines || 'none') + '.' +
+    (PLAN.rules && PLAN.rules.en && PLAN.rules.en.length ? '\n- Rules: ' + PLAN.rules.en.join(' | ') : '');
+}
+
 function goalContext() {
+  if (!hasPlan()) {
+    const tracked = Object.keys(DB).filter(isActiveDay).length;
+    return 'NO PLAN YET — the user is tracking a baseline (' + tracked + ' active days logged) before adopting a plan. ' +
+      'Meal-context concepts the app uses: office-tied items, home items, flexible items that fit any day, timing-flexible staples, ' +
+      'and permissive weekend days with one indulgent meal under a calorie cap. ' +
+      'If asked for a plan, recommend generating or importing one in the app (Settings → Plan) and base advice on the tracked data.';
+  }
   // Derive meal semantics from the plan's context tags so Claude can
   // rebuild the plan around a new goal without losing the constraints.
   const officeDays = [], homeDays = [], permissiveDays = [];
@@ -1993,9 +2209,11 @@ function goalContext() {
     (DAYPLAN[d].where === 'office' ? officeDays : homeDays).push(dnames[d]);
     if (DAYPLAN[d].mode === 'permissive') permissiveDays.push(dnames[d]);
   }
-  return 'GOAL (the entire plan below is derived from this):\n' +
-    '- Type: fat loss. Reach ' + dkey(progEnd()) + ' with ~' + GOAL.fatKg[0] + '-' + GOAL.fatKg[1] +
-    ' kg less body FAT (' + GOAL.scaleKg[0] + '-' + GOAL.scaleKg[1] + ' kg on the scale incl. week-1 water), muscle kept. After: ' + GOAL.after + '.\n\n' +
+  const goalLine = GOAL.fatKg
+    ? '- Type: ' + GOAL.type + '. Reach ' + dkey(progEnd()) + ' with ~' + GOAL.fatKg[0] + '-' + GOAL.fatKg[1] +
+      ' kg less body FAT (' + GOAL.scaleKg[0] + '-' + GOAL.scaleKg[1] + ' kg on the scale incl. week-1 water), muscle kept. After: ' + (GOAL.after || '—') + '.'
+    : '- ' + ((GOAL.desc && GOAL.desc.en) || GOAL.type) + ' Deadline: ' + dkey(progEnd()) + '.';
+  return 'GOAL (the entire plan below is derived from this):\n' + goalLine + '\n\n' +
     'MEAL PLAN SEMANTICS (constraints behind the menu, not a rigid list):\n' +
     '- "office" items are tied to office days (' + officeDays.join('/') + '): salmon + rice is the office lunch — only fits days the user is at the office.\n' +
     '- "home" items (eggs, home salmon bowls) belong to home days (' + homeDays.join('/') + ').\n' +
@@ -2024,21 +2242,17 @@ async function askClaude() {
 
   const wn = todayWn();
   const dow = todayDow();
-  const plan = DAYPLAN[dow];
+  const plan = DAYPLAN ? DAYPLAN[dow] : null;
   const entries = weightEntries();
   const latestW = entries[entries.length - 1];
-  const dks = getWeekKeys(Math.min(wn, PROGRAM.weeks));
+  const dks = getWeekKeys(hasPlan() ? Math.min(Math.max(wn, 1), PROGRAM.weeks) : Math.max(wn, 1));
   const weekCals = dks.map(dk => DB[dk]?.cal).filter(Boolean);
   const consumed = weekCals.reduce((a,b)=>a+b,0);
 
-  const system = 'You are a fitness coach AI embedded in LeanTracker, tracking a 4-week cut called "THE CUT" (7 Jun - 3 Jul 2026, then a trip to Stockholm).\n\n' +
-    'PROGRAM:\n' +
-    '- Start weight 87 kg. Expected weekly weigh-ins: W1 85.3, W2 84.7, W3 84.1, W4 83.5 kg. Goal: lose 3-3.8 kg on the scale (~2-2.3 kg real fat).\n' +
-    '- Weekly calorie budget: 15,410 kcal. Day targets: Mon 1960 (run), Tue/Wed 2065 (lift), Thu 2345 (legs, highest), Fri 2075 (rest), Sat/Sun cap 2450 (run + one indulgent meal).\n' +
-    '- Lifting: Tue chest/tri/abs, Wed back/biceps, Thu legs. Running progression (km Mon/Sat/Sun): W1 9/12/9, W2 10/13/11, W3 11/14/12, W4 11/13/11. Mostly easy zone 2.\n' +
-    '- Rules: week 2 will stall, hold calories; weekends one indulgent meal with drinks decided sober; keep lifts heavy.\n\n' +
+  const system = 'You are a fitness coach AI embedded in LeanTracker, a personal tracking app.\n\n' +
+    planContextForClaude() + '\n\n' +
     goalContext() + '\n\n' +
-    'USER STATE (today = ' + todayKey() + ', week ' + wn + ' of 4, day plan: ' + plan.focus.en + '):\n' +
+    'USER STATE (today = ' + todayKey() + (hasPlan() ? ', week ' + wn + ' of ' + PROGRAM.weeks + ', day plan: ' + (plan ? plan.focus.en : '—') : ', baseline mode') + '):\n' +
     '- Current weight: ' + (latestW ? latestW.weight + ' kg (logged ' + latestW.dk + ')' : 'not yet logged') + '. Goal: ' + settings.goalWeight + ' kg.\n' +
     '- This week so far: ' + (weekCals.length ? consumed + ' kcal logged over ' + weekCals.length + ' day(s)' : 'no calories logged') + '. Protein target: ' + settings.protein + ' g/day.\n\n' +
     'Respond in ' + (lang === 'en' ? 'English' : 'Spanish') + '. Be specific, practical, and concise (under 280 words). Use **bold** for key numbers or actions.';
@@ -2082,6 +2296,253 @@ async function askClaude() {
 }
 
 // ─────────────────────────────────────────────────────────────────
+// PLAN MANAGEMENT — import / export / reset / generate
+// ─────────────────────────────────────────────────────────────────
+function validatePlan(pl) {
+  if (!pl || typeof pl !== 'object') return ['not a plan object'];
+  const errs = [];
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(pl.startDate || '')) errs.push('startDate must be YYYY-MM-DD');
+  if (!(pl.weeks >= 1 && pl.weeks <= 12)) errs.push('weeks must be 1-12');
+  if (typeof pl.weekBudget !== 'number') errs.push('weekBudget (kcal) missing');
+  if (!Array.isArray(pl.expected) || pl.expected.length !== pl.weeks) errs.push('expected[] needs one weight per week');
+  if (!Array.isArray(pl.runs) || pl.runs.length !== pl.weeks) errs.push('runs[] needs one entry per week');
+  for (let d = 0; d < 7; d++) {
+    const day = pl.days && pl.days[d];
+    if (!day) { errs.push('missing day ' + d); continue; }
+    if (typeof day.cal !== 'number') errs.push('day ' + d + ': cal missing');
+    if (!day.focus || !day.focus.en) errs.push('day ' + d + ': focus.en missing');
+    if (!Array.isArray(day.meals) || !day.meals.length) errs.push('day ' + d + ': meals missing');
+    else day.meals.forEach((m, i) => {
+      if (typeof m.n !== 'string' || (m.k !== null && typeof m.k !== 'number')) errs.push('day ' + d + ' meal ' + (i + 1) + ' invalid');
+    });
+  }
+  return errs;
+}
+
+function normalizePlan(pl) {
+  pl.schema = 1;
+  // generated plans deliver runs as [[{dow,km}]...] — convert to {dow:km}
+  if (Array.isArray(pl.runs) && Array.isArray(pl.runs[0])) {
+    pl.runs = pl.runs.map(wk => { const o = {}; wk.forEach(r => { if (r.km > 0) o[r.dow] = r.km; }); return o; });
+  }
+  for (let d = 0; d < 7; d++) {
+    const day = pl.days && pl.days[d];
+    if (!day) continue;
+    if (day.workout === null || (Array.isArray(day.workout) && !day.workout.length)) delete day.workout;
+    if (!day.illus) day.illus = day.workout ? 'lift' : 'rest';
+    if (!day.tag) day.tag = {en: '', es: ''};
+    if (day.focus && !day.focus.es) day.focus.es = day.focus.en;
+    if (day.isCap === undefined) day.isCap = day.mode === 'permissive';
+    (day.meals || []).forEach(m => { if (m.c === 'indulgent' && !m.k) m.k = null; });
+  }
+  if (!pl.progDays) pl.progDays = pl.weeks * 7 - 1;
+  if (!pl.rules) pl.rules = {en: [], es: []};
+  if (!pl.goal) pl.goal = {type: 'custom', after: '', title: {en: pl.name || 'PLAN', es: pl.name || 'PLAN'},
+                           sub: {en: '', es: ''}, desc: {en: '', es: ''}};
+  return pl;
+}
+
+function planSummaryHTML(pl) {
+  const dn = L[lang].dshort;
+  const end = new Date(pl.startDate + 'T12:00:00');
+  end.setDate(end.getDate() + (pl.progDays || pl.weeks * 7 - 1) - 1);
+  const dayKcals = Array.from({length: 7}, (_, d) => dn[d] + ' ' + pl.days[d].cal).join(' · ');
+  const runTotals = pl.runs.map((wk, i) => 'W' + (i + 1) + ': ' +
+    Object.values(wk).reduce((a, b) => a + b, 0) + 'km').join(' · ');
+  return '<strong style="color:var(--text);">' + (pl.name || 'PLAN') + '</strong><br>' +
+    fmtDate(new Date(pl.startDate + 'T12:00:00')) + ' → ' + fmtDate(end) + ' · ' + pl.weeks + ' ' + t('weeks_w') + '<br>' +
+    (pl.goal && pl.goal.title ? '<span class="grad-text" style="font-family:var(--fd);font-weight:700;">' +
+      (pl.goal.title[lang] || pl.goal.title.en) + '</span><br>' : '') +
+    t('week_budget') + ': ' + pl.weekBudget.toLocaleString() + ' kcal<br>' +
+    'kcal: ' + dayKcals + '<br>' +
+    t('run_plan') + ': ' + (runTotals || '—');
+}
+
+let _pendingPlan = null;
+function previewPlan(pl) {
+  _pendingPlan = pl;
+  document.getElementById('plan-prev').innerHTML = planSummaryHTML(pl);
+  openModal('plan-modal');
+}
+function confirmPlan() {
+  if (!_pendingPlan) return;
+  savePlan(_pendingPlan);
+  _pendingPlan = null;
+  viewWn = Math.max(todayWn(), 1);
+  closeModal('plan-modal');
+  renderActive();
+  renderSettingsForm();
+  toast(t('plan_loaded'));
+}
+
+function importPlanFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const pl = normalizePlan(JSON.parse(e.target.result));
+      const errs = validatePlan(pl);
+      if (errs.length) { alert(t('invalid_plan') + '\n' + errs.join('\n')); return; }
+      previewPlan(pl);
+    } catch { alert(t('invalid_plan')); }
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+
+function exportPlan() {
+  if (!PLAN) { alert(t('plan_none')); return; }
+  const blob = new Blob([JSON.stringify(PLAN, null, 2)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'leantracker-plan-' + dkey(new Date()) + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function resetPlan() {
+  if (!PLAN) return;
+  if (!confirm(t('reset_q'))) return;
+  localStorage.removeItem('lt_plan');
+  PLAN = null;
+  applyPlan();
+  renderActive();
+  renderSettingsForm();
+  toast(t('plan_removed'));
+}
+
+// ── Generate with Claude — questionnaire + tracked-data digest →
+//    structured-output plan JSON → validate → preview
+const _LSCH = {type:'object', properties:{en:{type:'string'}, es:{type:'string'}}, required:['en','es'], additionalProperties:false};
+const _MEALSCH = {type:'object', properties:{n:{type:'string'}, k:{type:'integer'},
+  c:{type:'string', enum:['any','office','home','flex','indulgent']}}, required:['n','k','c'], additionalProperties:false};
+const _DAYSCH = {type:'object', properties:{
+  illus:{type:'string', enum:['run','runfree','lift','rest']},
+  where:{type:'string', enum:['office','home']},
+  mode:{type:'string', enum:['strict','permissive']},
+  focus:_LSCH, tag:_LSCH, cal:{type:'integer'}, isCap:{type:'boolean'},
+  meals:{type:'array', items:_MEALSCH},
+  workout:{anyOf:[{type:'array', items:{type:'array', items:{type:'string'}}}, {type:'null'}]}},
+  required:['illus','where','mode','focus','tag','cal','isCap','meals','workout'], additionalProperties:false};
+const PLAN_SCHEMA = {type:'object', properties:{
+  schema:{type:'integer'}, name:{type:'string'}, startDate:{type:'string'},
+  weeks:{type:'integer'}, progDays:{type:'integer'}, weekBudget:{type:'integer'},
+  startWeight:{type:'number'}, goalWeight:{type:'number'},
+  expected:{type:'array', items:{type:'number'}},
+  runs:{type:'array', items:{type:'array', items:{type:'object',
+    properties:{dow:{type:'integer'}, km:{type:'number'}}, required:['dow','km'], additionalProperties:false}}},
+  goal:{type:'object', properties:{type:{type:'string'}, after:{type:'string'}, title:_LSCH, sub:_LSCH, desc:_LSCH},
+    required:['type','after','title','sub','desc'], additionalProperties:false},
+  rules:{type:'object', properties:{en:{type:'array', items:{type:'string'}}, es:{type:'array', items:{type:'string'}}},
+    required:['en','es'], additionalProperties:false},
+  days:{type:'object', properties:{'0':_DAYSCH,'1':_DAYSCH,'2':_DAYSCH,'3':_DAYSCH,'4':_DAYSCH,'5':_DAYSCH,'6':_DAYSCH},
+    required:['0','1','2','3','4','5','6'], additionalProperties:false}},
+  required:['schema','name','startDate','weeks','progDays','weekBudget','startWeight','goalWeight',
+            'expected','runs','goal','rules','days'], additionalProperties:false};
+
+function trackingDigest() {
+  const days = Object.keys(DB).filter(isActiveDay).sort();
+  if (!days.length) return 'No tracked data yet.';
+  const dn = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const byDow = [[],[],[],[],[],[],[]];
+  days.forEach(dk => { const c = DB[dk].cal; if (c) byDow[dowOf(dk)].push(c); });
+  const avg = byDow.map((a, i) => a.length ? dn[i] + ' ' + Math.round(a.reduce((x, y) => x + y, 0) / a.length) : null)
+    .filter(Boolean).join(', ');
+  const comp = HKEYS.filter(k => k !== 'cal').map(k => {
+    let pts = 0, tot = 0;
+    days.forEach(dk => { const v = DB[dk].habits?.[k]; if (v !== null && v !== undefined) { tot++; pts += v; } });
+    return tot ? k + ' ' + Math.round((pts / tot) * 100) + '%' : null;
+  }).filter(Boolean).join(', ');
+  const ws = weightEntries().map(e => e.dk + ' ' + e.weight + 'kg').join(', ');
+  const notes = days.map(dk => DB[dk].training).filter(Boolean).slice(-8).join(' | ');
+  return days.length + ' days tracked (' + days[0] + ' to ' + days[days.length - 1] + ').\n' +
+    'Avg logged kcal by weekday: ' + (avg || 'none') + '.\n' +
+    'Habit compliance: ' + (comp || 'none') + '.\n' +
+    'Weigh-ins: ' + (ws || 'none') + '.\n' +
+    'Recent training notes: ' + (notes || 'none') + '.';
+}
+
+function openGenModal() {
+  const ds = L[lang].dshort;
+  document.getElementById('g-office').innerHTML = ds.map((d, i) =>
+    '<div class="dchip' + ([2, 3, 4].includes(i) ? ' sel' : '') + '" data-d="' + i + '" ' +
+    'onclick="this.classList.toggle(\'sel\')"><span class="d1">' + d.toUpperCase() + '</span></div>').join('');
+  const dl = new Date(); dl.setDate(dl.getDate() + 28);
+  document.getElementById('g-deadline').value = dkey(dl);
+  document.getElementById('gen-box').className = 'ai-box';
+  applyI18n();
+  openModal('gen-modal');
+}
+
+async function genPlan() {
+  const box = document.getElementById('gen-box');
+  box.className = 'ai-box on';
+  if (!apiKey) { box.innerHTML = '<span style="color:var(--amber);">' + t('no_key_msg') + '</span>'; return; }
+  box.innerHTML = '<span class="loader"></span><span style="color:var(--accent);font-size:12px;">' + t('gen_wait') + '</span>';
+
+  const office = [...document.querySelectorAll('#g-office .dchip.sel')].map(e => +e.getAttribute('data-d'));
+  const we = weightEntries();
+  const ans = {
+    goal: document.getElementById('g-goal').value,
+    targetKg: parseFloat(document.getElementById('g-target').value) || null,
+    deadline: document.getElementById('g-deadline').value || null,
+    officeDays: office,
+    trainingDaysPerWeek: parseInt(document.getElementById('g-train').value) || 3,
+    trainingStyle: document.getElementById('g-style').value,
+    notes: document.getElementById('g-notes').value.trim(),
+  };
+  const tracked = Object.keys(DB).filter(isActiveDay).length;
+
+  const sys = 'You design structured fitness plans for LeanTracker. Output ONLY the plan JSON per the schema.\n' +
+    'Semantics: meal context tags — "office" items only fit office days; "home" items fit home days; "flex" fits any day; ' +
+    '"any" = timing-flexible staple; "indulgent" = one free meal on permissive (weekend-style) days under that day\'s cal cap (set its k to 0). ' +
+    'Day kcal follows training load; protein stays high. runs: per program week, an array of {dow,km} (dow 0=Sun..6=Sat); use [] for weeks without runs.\n' +
+    'startDate: the next Sunday on or after today (' + todayKey() + '). weeks: from startDate to the deadline (1-12). ' +
+    'expected: a realistic weekly weigh-in trajectory starting from ' + (we.length ? we[we.length - 1].weight + ' kg' : 'an estimated start weight') + '. ' +
+    'Fill both en and es for every text. Keep meal items simple and repeatable.' +
+    (tracked < 14 ? '\nLIMITED CONTEXT: only ' + tracked + ' tracked day(s) — lean on the questionnaire and say so in goal.desc.' : '');
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-opus-4-8',
+        max_tokens: 8192,
+        system: sys,
+        messages: [{role: 'user', content: 'Questionnaire answers: ' + JSON.stringify(ans) +
+          '\n\nTracked data:\n' + trackingDigest() + '\n\nDesign the full plan.'}],
+        output_config: {format: {type: 'json_schema', schema: PLAN_SCHEMA}}
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      box.innerHTML = '<span style="color:var(--red);">' + (data.error?.message || ('HTTP ' + res.status)) + '</span>';
+      return;
+    }
+    const text = (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('');
+    const pl = normalizePlan(JSON.parse(text));
+    const errs = validatePlan(pl);
+    if (errs.length) {
+      box.innerHTML = '<span style="color:var(--red);">' + t('invalid_plan') + ' ' + errs.join('; ') + '</span>';
+      return;
+    }
+    box.className = 'ai-box';
+    closeModal('gen-modal');
+    previewPlan(pl);
+  } catch (e) {
+    box.innerHTML = '<span style="color:var(--red);">' + (lang === 'en' ? 'Connection error. Check your internet.' : 'Error de conexión. Revisa tu internet.') + '</span>';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────
 // SETTINGS
 // ─────────────────────────────────────────────────────────────────
 function renderSettingsForm() {
@@ -2089,8 +2550,12 @@ function renderSettingsForm() {
   document.getElementById('s-calmax').value = settings.calMax;
   document.getElementById('s-prot').value   = settings.protein;
   document.getElementById('s-goal').value   = settings.goalWeight;
-  document.getElementById('s-start').value  = settings.startDate || '2026-06-07';
+  document.getElementById('s-start').value  = (PLAN && PLAN.startDate) || settings.startDate || '';
   document.getElementById('s-apikey').value = apiKey;
+  document.getElementById('plan-status').innerHTML = PLAN
+    ? t('plan_active') + ': <strong style="color:var(--accent);">' + (PLAN.name || 'PLAN') + '</strong> · ' +
+      fmtDate(new Date(PLAN.startDate + 'T12:00:00')) + ' · ' + PLAN.weeks + ' ' + t('weeks_w')
+    : t('plan_none');
 }
 
 function saveSettings() {
@@ -2098,7 +2563,11 @@ function saveSettings() {
   settings.calMax     = parseInt(document.getElementById('s-calmax').value)   || 2450;
   settings.protein    = parseInt(document.getElementById('s-prot').value)     || 160;
   settings.goalWeight = parseFloat(document.getElementById('s-goal').value)   || 83.5;
-  settings.startDate  = document.getElementById('s-start').value || '2026-06-07';
+  settings.startDate  = document.getElementById('s-start').value || settings.startDate || '2026-06-07';
+  if (PLAN) {
+    PLAN.startDate = settings.startDate;
+    localStorage.setItem('lt_plan', JSON.stringify(PLAN));
+  }
   localStorage.setItem('lt_settings', JSON.stringify(settings));
   viewWn = Math.max(todayWn(), 1);
   alert(lang === 'en' ? '✓ Settings saved' : '✓ Ajustes guardados');
@@ -2114,7 +2583,7 @@ function saveApiKey() {
 // EXPORT / IMPORT
 // ─────────────────────────────────────────────────────────────────
 function exportData() {
-  const blob = new Blob([JSON.stringify({version:3, exportedAt:new Date().toISOString(), settings, db:DB}, null, 2)], {type:'application/json'});
+  const blob = new Blob([JSON.stringify({version:4, exportedAt:new Date().toISOString(), settings, plan:PLAN, db:DB}, null, 2)], {type:'application/json'});
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
   a.href     = url;
@@ -2132,6 +2601,7 @@ function importData(input) {
       const data = JSON.parse(e.target.result);
       if (data.db)       { DB = data.db; persist(); }
       if (data.settings) { settings = data.settings; localStorage.setItem('lt_settings', JSON.stringify(settings)); }
+      if (data.plan)     { savePlan(normalizePlan(data.plan)); }
       alert(lang === 'en' ? '✓ Data imported' : '✓ Datos importados');
       renderActive();
     } catch { alert(lang === 'en' ? 'Invalid file.' : 'Archivo inválido.'); }
@@ -2143,10 +2613,29 @@ function importData(input) {
 // ─────────────────────────────────────────────────────────────────
 // BOOT
 // ─────────────────────────────────────────────────────────────────
+loadPlan();               // hydrate the stored plan (auto-migrates existing installs)
 seedHistory();            // no-op if DB already exists in localStorage
 viewWn = Math.max(todayWn(), 1);  // week view starts on current program week
 applyI18n();
 renderToday();
+
+// ── Day-rollover / resume handling: a PWA restored from memory keeps
+// running with the old date — re-anchor "today" whenever we wake up.
+let lastSeenDay = todayKey();
+function handleResume() {
+  const tk = todayKey();
+  if (tk !== lastSeenDay) {
+    if (selKey() === lastSeenDay) goToday();   // follow the new today
+    lastSeenDay = tk;
+    _tickerLast = '';
+    renderActive();
+  }
+  updateStreak();
+  if (activeScr === 'today') updateRings();
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) handleResume(); });
+window.addEventListener('pageshow', handleResume);
+setInterval(handleResume, 60000);
 document.getElementById('version-tag').textContent = 'LEANTRACKER ' + APP_VERSION;
 document.getElementById('cal-btn').innerHTML = cicon('calendar', 13);
 
