@@ -116,13 +116,32 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
   border-bottom:1px solid var(--border);transition:background .15s;}
 .hitem:last-child{border-bottom:none;}
 .hitem:active{background:var(--bg3);}
-.hicon{font-size:18px;width:26px;text-align:center;flex-shrink:0;}
+.hicon{width:26px;height:24px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.hicon svg{width:21px;height:21px;}
+
+/* FACE SELECTOR (habit state) */
+.faces{display:flex;gap:6px;flex-shrink:0;}
+.face{width:30px;height:30px;border-radius:50%;border:1.5px solid var(--border);background:var(--bg3);
+  color:var(--text3);display:flex;align-items:center;justify-content:center;cursor:pointer;
+  padding:4px;transition:all .2s;}
+.face svg{width:100%;height:100%;}
+.face.sel{animation:facePop .35s cubic-bezier(.2,.8,.3,1);}
+.face.sel.f-pass{color:var(--accent);border-color:rgba(0,229,255,.5);background:var(--accent-dim);
+  box-shadow:0 0 12px rgba(0,229,255,.35);}
+.face.sel.f-part{color:var(--amber);border-color:rgba(255,200,87,.5);background:var(--amber-dim);
+  box-shadow:0 0 12px rgba(255,200,87,.3);}
+.face.sel.f-fail{color:var(--red);border-color:rgba(255,84,112,.5);background:var(--red-dim);
+  box-shadow:0 0 12px rgba(255,84,112,.3);}
+@keyframes facePop{0%{transform:scale(.7);}60%{transform:scale(1.18);}100%{transform:scale(1);}}
 
 /* CHECK ROWS (meals / lifts) */
 .chk{width:24px;height:24px;border-radius:8px;border:1.5px solid var(--border2);flex-shrink:0;
   display:flex;align-items:center;justify-content:center;font-size:13px;color:#031018;
-  cursor:pointer;transition:all .2s;background:var(--bg3);}
+  cursor:pointer;transition:all .2s;background:var(--bg3);padding:4px;}
 .chk.on{background:var(--grad);border-color:transparent;box-shadow:0 0 12px rgba(0,229,255,0.4);}
+.chk svg{width:100%;height:100%;}
+.chk.anim .chkpath{stroke-dasharray:16;stroke-dashoffset:16;animation:drawchk .4s ease forwards .05s;}
+@keyframes drawchk{to{stroke-dashoffset:0;}}
 .chk-row{display:flex;align-items:center;gap:12px;padding:10px 15px;border-bottom:1px solid var(--border);cursor:pointer;}
 .chk-row:last-child{border-bottom:none;}
 .chk-row.on .chk-name{color:var(--text2);text-decoration:line-through;text-decoration-color:rgba(0,229,255,.5);}
@@ -263,7 +282,8 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
 .ringwrap{position:relative;width:88px;height:88px;flex-shrink:0;}
 .ringwrap > svg{width:100%;height:100%;filter:drop-shadow(0 0 9px rgba(0,229,255,.35));}
 .ring-ic{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;}
-.ring-ic svg{width:30px;height:30px;animation:floaty 4s ease-in-out infinite;}
+.ring-ic svg{width:38px;height:38px;animation:floaty 4s ease-in-out infinite;
+  filter:drop-shadow(0 0 6px rgba(0,229,255,.45));}
 .hero-kcal{margin-top:10px;font-family:var(--fd);font-weight:700;font-size:12px;color:var(--accent);letter-spacing:.06em;}
 .illus-side{flex-shrink:0;}
 .illus-side svg{width:64px;height:64px;animation:floaty 4.5s ease-in-out infinite;
@@ -353,7 +373,7 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
     <div class="hdr-row">
       <div><div class="disp hdr-title grad-text" id="hdr-today">TODAY</div><div class="hdr-sub" id="sub-today"></div></div>
       <div style="display:flex;align-items:center;gap:8px;">
-        <span class="streak-chip" id="streak-chip">⚡ 0</span>
+        <span class="streak-chip" id="streak-chip"></span>
         <button class="lang-btn" onclick="toggleLang()" id="lang-btn">ES</button>
       </div>
     </div>
@@ -653,10 +673,53 @@ es:{
   ins_weight_ahead:'Adelantado al plan', ins_weight_behind:'Detrás de la curva', ins_weigh_in:'Registra un pesaje',
 }};
 
-const APP_VERSION = 'v4.1';  // bump on release — shown in Settings so a stale cache is easy to spot
+const APP_VERSION = 'v4.2';  // bump on release — shown in Settings so a stale cache is easy to spot
 
-const HICONS = ['🍷','🍬','💧','🔥','🥩','💪','😴','📱'];
-const HKEYS  = ['alcohol','dulce','agua','cal','macros','training','sleep','phone'];
+const HKEYS = ['alcohol','dulce','agua','cal','macros','training','sleep','phone'];
+
+// ─────────────────────────────────────────────────────────────────
+// MINI ICONS — 24px neon line-art (replaces emoji), per-use gradient ids
+// ─────────────────────────────────────────────────────────────────
+const MICON_FN = {
+  alcohol:  '<path d="M7 3 H17 L16 9 A4 4 0 0 1 8 9 Z"/><path d="M12 13 V20"/><path d="M8.5 20 H15.5"/>',
+  dulce:    '<circle cx="12" cy="12" r="4"/><path d="M8.6 9.6 L4.5 7.4 L5.4 12 L4.5 16.6 L8.6 14.4"/><path d="M15.4 9.6 L19.5 7.4 L18.6 12 L19.5 16.6 L15.4 14.4"/>',
+  agua:     '<path d="M12 3 C12 3 6 10.2 6 14.2 A6 6 0 0 0 18 14.2 C18 10.2 12 3 12 3 Z"/>',
+  cal:      '<path d="M12 3 C14 6.5 17 8.2 17 12.6 A5 5 0 0 1 7 12.6 C7 10.2 8.4 8.8 9.4 6.8 C10.2 8.4 11.5 8.6 12 3 Z"/>',
+  macros:   '<path d="M12 4 L18 8 V16 L12 20 L6 16 V8 Z"/><circle cx="12" cy="12" r="2.2"/>',
+  training: '<path d="M7 9 V15"/><path d="M4.5 10.5 V13.5"/><path d="M17 9 V15"/><path d="M19.5 10.5 V13.5"/><path d="M7 12 H17"/>',
+  sleep:    '<path d="M14.5 4 A8 8 0 1 0 20 11.5 A6.2 6.2 0 0 1 14.5 4 Z"/>',
+  phone:    '<rect x="8" y="3.5" width="8" height="17" rx="2"/><path d="M11 18 H13"/>',
+  bolt:     '<path d="M13 3 L6 14 H11 L10 21 L18 10 H13 Z"/>',
+};
+let _mic = 0;
+function micon(name, size) {
+  const id = 'mi' + (++_mic);
+  const s = size || 22;
+  return '<svg width="' + s + '" height="' + s + '" viewBox="0 0 24 24" fill="none" ' +
+    'style="vertical-align:-1.5px;" xmlns="http://www.w3.org/2000/svg">' +
+    '<defs><linearGradient id="' + id + '" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="24" y2="24">' +
+    '<stop offset="0" stop-color="#00e5ff"/><stop offset="1" stop-color="#e879f9"/></linearGradient></defs>' +
+    '<g stroke="url(#' + id + ')" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+    MICON_FN[name] + '</g></svg>';
+}
+
+// Face selector: pass / partial / fail as drawn faces (uses currentColor)
+const FACE_MOUTH = {
+  1:   '<path d="M8.2 14.2 Q12 17.6 15.8 14.2"/>',
+  0.5: '<path d="M8.5 15 H15.5"/>',
+  0:   '<path d="M8.2 16.2 Q12 12.8 15.8 16.2"/>',
+};
+function faceSvg(kind) {
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" ' +
+    'stroke-linecap="round" xmlns="http://www.w3.org/2000/svg">' +
+    '<circle cx="12" cy="12" r="9"/>' +
+    '<circle cx="9" cy="9.6" r="0.7" fill="currentColor"/><circle cx="15" cy="9.6" r="0.7" fill="currentColor"/>' +
+    FACE_MOUTH[kind] + '</svg>';
+}
+
+// Self-drawing checkmark for .chk boxes
+const CHK_SVG = '<svg viewBox="0 0 16 16" fill="none"><path class="chkpath" d="M3.5 8.5 L6.8 11.5 L12.5 4.5" ' +
+  'stroke="#031018" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 // ─────────────────────────────────────────────────────────────────
 // ILLUSTRATIONS — inline neon line-art, gradient ids unique per use
@@ -672,7 +735,7 @@ function _ilsvg(inner, id) {
     '<stop offset="1" stop-color="#e879f9"/></linearGradient></defs>' + inner + '</svg>';
 }
 function _runner(id) {
-  return '<g stroke="url(#' + id + ')" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">' +
+  return '<g stroke="url(#' + id + ')" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">' +
     '<circle cx="43" cy="12" r="5"/>' +
     '<path d="M41 20 L33 32"/>' +
     '<path d="M40 23 L50 28"/><path d="M40 24 L29 19"/>' +
@@ -686,32 +749,32 @@ function _star(id, x, y, s, op) {
 }
 const ILLUS_FN = {
   run: id => _ilsvg(_runner(id) +
-    '<g stroke="url(#' + id + ')" stroke-width="2.5" stroke-linecap="round" opacity="0.45">' +
+    '<g stroke="url(#' + id + ')" stroke-width="3" stroke-linecap="round" opacity="0.45">' +
     '<path d="M8 22 H17"/><path d="M5 31 H13"/><path d="M9 14 H15"/></g>', id),
   runfree: id => _ilsvg(_runner(id) + _star(id, 52, 50, 6, 0.85) + _star(id, 14, 16, 4, 0.6), id),
   lift: id => _ilsvg(
-    '<g stroke="url(#' + id + ')" stroke-width="3.5" stroke-linecap="round">' +
+    '<g stroke="url(#' + id + ')" stroke-width="4.2" stroke-linecap="round">' +
     '<path d="M22 42 L42 22"/>' +
     '<path d="M14 40 L24 50"/><path d="M12 44 L20 52"/>' +
     '<path d="M40 14 L50 24"/><path d="M44 12 L52 20"/>' +
     '</g>' + _star(id, 51, 49, 5, 0.75), id),
   rest: id => _ilsvg(
-    '<path d="M40 9 A21 21 0 1 0 57 35 A16 16 0 0 1 40 9 Z" stroke="url(#' + id + ')" stroke-width="3" stroke-linejoin="round"/>' +
+    '<path d="M40 9 A21 21 0 1 0 57 35 A16 16 0 0 1 40 9 Z" stroke="url(#' + id + ')" stroke-width="4" stroke-linejoin="round"/>' +
     _star(id, 16, 18, 4.5, 0.8) + _star(id, 23, 41, 3.5, 0.6), id),
   scale: id => _ilsvg(
-    '<rect x="14" y="12" width="36" height="40" rx="9" stroke="url(#' + id + ')" stroke-width="3"/>' +
-    '<path d="M23 30 A 11 11 0 0 1 41 30" stroke="url(#' + id + ')" stroke-width="3" stroke-linecap="round"/>' +
-    '<path d="M32 31 L38 23" stroke="url(#' + id + ')" stroke-width="3" stroke-linecap="round"/>' +
+    '<rect x="14" y="12" width="36" height="40" rx="9" stroke="url(#' + id + ')" stroke-width="4"/>' +
+    '<path d="M23 30 A 11 11 0 0 1 41 30" stroke="url(#' + id + ')" stroke-width="4" stroke-linecap="round"/>' +
+    '<path d="M32 31 L38 23" stroke="url(#' + id + ')" stroke-width="4" stroke-linecap="round"/>' +
     '<circle cx="32" cy="31" r="2.2" fill="url(#' + id + ')"/>', id),
   target: id => _ilsvg(
-    '<circle cx="30" cy="36" r="17" stroke="url(#' + id + ')" stroke-width="3"/>' +
-    '<circle cx="30" cy="36" r="9.5" stroke="url(#' + id + ')" stroke-width="3"/>' +
+    '<circle cx="30" cy="36" r="17" stroke="url(#' + id + ')" stroke-width="4"/>' +
+    '<circle cx="30" cy="36" r="9.5" stroke="url(#' + id + ')" stroke-width="4"/>' +
     '<circle cx="30" cy="36" r="2.5" fill="url(#' + id + ')"/>' +
-    '<g stroke="url(#' + id + ')" stroke-width="3" stroke-linecap="round">' +
+    '<g stroke="url(#' + id + ')" stroke-width="4" stroke-linecap="round">' +
     '<path d="M30 36 L52 14"/><path d="M52 14 L44.5 15.5"/><path d="M52 14 L50.5 21.5"/></g>', id),
   spark: id => _ilsvg(
     '<path d="M32 8 C34.5 24 40 29.5 56 32 C40 34.5 34.5 40 32 56 C29.5 40 24 34.5 8 32 C24 29.5 29.5 24 32 8 Z" ' +
-    'stroke="url(#' + id + ')" stroke-width="2.5" stroke-linejoin="round" fill="rgba(124,108,255,0.10)"/>' +
+    'stroke="url(#' + id + ')" stroke-width="3" stroke-linejoin="round" fill="rgba(124,108,255,0.10)"/>' +
     _star(id, 51, 12, 4.5, 0.8), id),
 };
 function illus(name) { return ILLUS_FN[name]('ilg' + (++_ilc)); }
@@ -1010,7 +1073,7 @@ function countUp(el, target, suffix) {
 function _ringArc(id, r, stroke) {
   const C = (2 * Math.PI * r).toFixed(1);
   return '<circle id="' + id + '" cx="46" cy="46" r="' + r + '" fill="none" stroke="' + stroke + '" ' +
-    'stroke-width="5.5" stroke-linecap="round" stroke-dasharray="' + C + '" stroke-dashoffset="' + C + '" ' +
+    'stroke-width="4.5" stroke-linecap="round" stroke-dasharray="' + C + '" stroke-dashoffset="' + C + '" ' +
     'transform="rotate(-90 46 46)" style="transition:stroke-dashoffset .5s cubic-bezier(.2,.8,.3,1);"/>';
 }
 function ringStats(dk) {
@@ -1032,15 +1095,15 @@ function ringStats(dk) {
 }
 function updateRings() {
   const s = ringStats(todayKey());
-  [['hero-arc', 40, s.kcal], ['hero-arc-h', 33, s.habits], ['hero-arc-t', 26, s.train]].forEach(([id, r, p]) => {
+  [['hero-arc', 41, s.kcal], ['hero-arc-h', 34.5, s.habits], ['hero-arc-t', 28, s.train]].forEach(([id, r, p]) => {
     const el = document.getElementById(id);
     if (el) el.style.strokeDashoffset = ((2 * Math.PI * r) * (1 - p)).toFixed(1);
   });
   const hk = document.getElementById('hero-kcal');
   if (hk) hk.innerHTML =
-    '<span style="color:var(--accent);">🔥 ' + s.cal + '/' + s.target + '</span>' +
+    '<span style="color:var(--accent);">' + micon('cal', 11) + ' ' + s.cal + '/' + s.target + '</span>' +
     '<span style="color:var(--text3);"> · </span><span style="color:var(--green);">✓ ' + s.hp + '/' + s.hkLen + '</span>' +
-    '<span style="color:var(--text3);"> · </span><span style="color:#a78bfa;">💪 ' + s.trainLbl + '</span>';
+    '<span style="color:var(--text3);"> · </span><span style="color:#a78bfa;">' + micon('training', 11) + ' ' + s.trainLbl + '</span>';
 }
 
 let _tickerLast = '';
@@ -1079,7 +1142,7 @@ function renderToday() {
 
   document.getElementById('hdr-today').textContent = lang === 'en' ? 'TODAY' : 'HOY';
   document.getElementById('sub-today').textContent = ds[dow] + '  ·  W' + wn + '/' + PROGRAM.weeks + '  ·  ' + fmtDate(now);
-  document.getElementById('streak-chip').textContent = '⚡ ' + calcStreak();
+  updateStreak();
   setTicker();
 
   // Hero — today's focus + triple activity rings (kcal / habits / training)
@@ -1093,12 +1156,12 @@ function renderToday() {
       '<div class="ringwrap">' +
         '<svg viewBox="0 0 92 92"><defs><linearGradient id="hring" x1="0" y1="0" x2="1" y2="1">' +
         '<stop offset="0" stop-color="#00e5ff"/><stop offset="1" stop-color="#e879f9"/></linearGradient></defs>' +
-        '<circle cx="46" cy="46" r="40" fill="none" stroke="rgba(120,160,255,0.10)" stroke-width="5.5"/>' +
-        '<circle cx="46" cy="46" r="33" fill="none" stroke="rgba(120,160,255,0.10)" stroke-width="5.5"/>' +
-        '<circle cx="46" cy="46" r="26" fill="none" stroke="rgba(120,160,255,0.10)" stroke-width="5.5"/>' +
-        _ringArc('hero-arc', 40, 'url(#hring)') +
-        _ringArc('hero-arc-h', 33, '#3ef2a5') +
-        _ringArc('hero-arc-t', 26, '#a78bfa') +
+        '<circle cx="46" cy="46" r="41" fill="none" stroke="rgba(120,160,255,0.10)" stroke-width="4.5"/>' +
+        '<circle cx="46" cy="46" r="34.5" fill="none" stroke="rgba(120,160,255,0.10)" stroke-width="4.5"/>' +
+        '<circle cx="46" cy="46" r="28" fill="none" stroke="rgba(120,160,255,0.10)" stroke-width="4.5"/>' +
+        _ringArc('hero-arc', 41, 'url(#hring)') +
+        _ringArc('hero-arc-h', 34.5, '#3ef2a5') +
+        _ringArc('hero-arc-t', 28, '#a78bfa') +
         '</svg>' +
         '<div class="ring-ic">' + illus(plan.illus) + '</div>' +
       '</div>' +
@@ -1147,7 +1210,7 @@ function renderMeals(dk, plan, tCal) {
     const chip = cc ? '<span class="chip c-' + m.c + '">' + cc.ic + ' ' + cc[lang] + '</span>' : '';
     const on = !!day.meals[i];
     return '<div class="chk-row' + (on ? ' on' : '') + '" onclick="toggleMeal(\'' + dk + '\',' + i + ',this)">' +
-      '<div class="chk' + (on ? ' on' : '') + '">' + (on ? '✓' : '') + '</div>' +
+      '<div class="chk' + (on ? ' on' : '') + '">' + (on ? CHK_SVG : '') + '</div>' +
       '<div class="chk-name">' + name + chip + '</div>' +
       '<div class="chk-kcal">' + (m.k != null ? m.k : '?') + '</div></div>';
   }).join('');
@@ -1166,7 +1229,11 @@ function toggleMeal(dk, i, el) {
   persist();
   if (turningOn && el) burst(el.querySelector('.chk') || el);
   renderToday();
-  if (turningOn && plan.meals.every((m, j) => day.meals[j])) toast(t('meals_done'));
+  if (turningOn) {
+    const chk = document.querySelectorAll('#meal-list .chk')[i];
+    if (chk) chk.classList.add('anim');
+    if (plan.meals.every((m, j) => day.meals[j])) toast(t('meals_done'));
+  }
 }
 
 function renderHabits(dk, day, tCal) {
@@ -1183,7 +1250,7 @@ function renderHabits(dk, day, tCal) {
       const pct = cv ? Math.min((cv / tCal) * 100, 130) : 0;
       const bc  = cv > tCal * 1.05 ? 'var(--red)' : (cv && cv < tCal * 0.75) ? 'var(--amber)' : 'var(--grad)';
       item.innerHTML =
-        '<span class="hicon">' + HICONS[i] + '</span>' +
+        '<span class="hicon">' + micon(key) + '</span>' +
         '<div style="flex:1;">' +
           '<div style="font-size:14px;font-weight:500;">' + hnames[i] + '</div>' +
           '<div class="tbar-bg"><div class="tbar-fill" id="cal-bar" style="width:' + pct + '%;background:' + bc + ';"></div></div>' +
@@ -1195,11 +1262,15 @@ function renderHabits(dk, day, tCal) {
         '</div>';
     } else {
       const val = day.habits[key] ?? null;
+      const fcls = {1:'f-pass', 0.5:'f-part', 0:'f-fail'};
+      const faces = [1, 0.5, 0].map(kind =>
+        '<button class="face ' + fcls[kind] + (val === kind ? ' sel' : '') + '" ' +
+        'onclick="setHabit(this,' + kind + ')">' + faceSvg(kind) + '</button>'
+      ).join('');
       item.innerHTML =
-        '<span class="hicon">' + HICONS[i] + '</span>' +
+        '<span class="hicon">' + micon(key) + '</span>' +
         '<div style="flex:1;font-size:14px;font-weight:500;">' + hnames[i] + '</div>' +
-        '<div class="sdot ' + sCls(val) + '" data-dk="' + dk + '" data-key="' + key + '">' + sIcon(val) + '</div>';
-      item.querySelector('.sdot').addEventListener('click', function() { cycleHabit(this); });
+        '<div class="faces" data-dk="' + dk + '" data-key="' + key + '">' + faces + '</div>';
     }
     list.appendChild(item);
   });
@@ -1216,7 +1287,7 @@ function renderWorkout(dk, plan) {
   html += plan.workout.map((ex, i) => {
     const on = !!day.lifts[i];
     return '<div class="chk-row' + (on ? ' on' : '') + '" onclick="toggleLift(\'' + dk + '\',' + i + ',this)">' +
-      '<div class="chk' + (on ? ' on' : '') + '">' + (on ? '✓' : '') + '</div>' +
+      '<div class="chk' + (on ? ' on' : '') + '">' + (on ? CHK_SVG : '') + '</div>' +
       '<div class="chk-name">' + ex[0] + '</div>' +
       '<div class="chk-kcal">' + ex[1] + '</div></div>';
   }).join('');
@@ -1233,26 +1304,39 @@ function toggleLift(dk, i, el) {
   if (turningOn && el) burst(el.querySelector('.chk') || el);
   renderWorkout(dk, plan);
   updateRings();
-  if (turningOn && plan.workout && plan.workout.every((_, j) => day.lifts[j])) toast(t('workout_done'));
+  if (turningOn) {
+    const chk = document.querySelectorAll('#workout-section .chk')[i];
+    if (chk) chk.classList.add('anim');
+    if (plan.workout && plan.workout.every((_, j) => day.lifts[j])) toast(t('workout_done'));
+  }
 }
 
-function cycleHabit(el) {
-  const dk  = el.getAttribute('data-dk');
-  const key = el.getAttribute('data-key');
+function setHabit(btn, kind) {
+  const wrap = btn.parentElement;
+  const dk  = wrap.getAttribute('data-dk');
+  const key = wrap.getAttribute('data-key');
   const day = getDay(dk);
-  const cur = day.habits[key] ?? null;
-  const seq = [null, 1, 0.5, 0];
-  day.habits[key] = seq[(seq.indexOf(cur) + 1) % seq.length];
+  const val = day.habits[key] === kind ? null : kind;   // tap the same face again to clear
+  day.habits[key] = val;
   persist();
-  el.className = 'sdot ' + sCls(day.habits[key]);
-  el.textContent = sIcon(day.habits[key]);
+  wrap.querySelectorAll('.face').forEach(f => f.classList.remove('sel'));
+  if (val !== null) {
+    void btn.offsetWidth;   // restart the pop animation
+    btn.classList.add('sel');
+    try { if (navigator.vibrate) navigator.vibrate(8); } catch (e) {}
+    if (val === 1) {
+      burst(btn);
+      if (HKEYS.filter(k => k !== 'cal').every(k => day.habits[k] === 1)) toast(t('habits_done'));
+    }
+  }
   refreshScore(dk);
   updateRings();
-  if (day.habits[key] === 1) {
-    burst(el);
-    if (HKEYS.filter(k => k !== 'cal').every(k => day.habits[k] === 1)) toast(t('habits_done'));
-  }
-  document.getElementById('streak-chip').textContent = '⚡ ' + calcStreak();
+  updateStreak();
+}
+
+function updateStreak() {
+  const el = document.getElementById('streak-chip');
+  if (el) el.innerHTML = micon('bolt', 12) + ' ' + calcStreak();
 }
 
 function refreshScore(dk) {
@@ -1382,7 +1466,7 @@ function renderWeek() {
       if (done) doneKm += km;
       const tr = DB[dk]?.training;
       return '<div class="run-row" style="cursor:pointer;" onclick="toggleRun(\'' + dk + '\',this)">' +
-        '<div class="chk' + (done ? ' on' : '') + '">' + (done ? '✓' : '') + '</div>' +
+        '<div class="chk' + (done ? ' on' : '') + '">' + (done ? CHK_SVG : '') + '</div>' +
         '<span class="run-day">' + ds[dow] + '</span>' +
         '<span class="run-km grad-text">' + km + ' km</span>' +
         '<span style="flex:1;text-align:right;font-size:12px;color:var(--text2);">' + (tr || '') + '</span></div>';
@@ -1417,6 +1501,8 @@ function toggleRun(dk, el) {
   renderWeek();
   if (dk === todayKey()) updateRings();
   if (turningOn) {
+    const chk = document.querySelector('#run-card .run-row[onclick*="' + dk + '"] .chk');
+    if (chk) chk.classList.add('anim');
     const plan = PROGRAM.runs[viewWn - 1];
     if (plan && getWeekKeys(viewWn).every((k, dow) => !plan[dow] || DB[k]?.runDone)) toast(t('runs_done'));
   }
