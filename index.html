@@ -254,6 +254,31 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
   border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px;}
 @keyframes spin{to{transform:rotate(360deg)}}
 
+/* ILLUSTRATIONS */
+@keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+.ringwrap{position:relative;width:88px;height:88px;flex-shrink:0;}
+.ringwrap > svg{width:100%;height:100%;filter:drop-shadow(0 0 9px rgba(0,229,255,.35));}
+.ring-ic{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;}
+.ring-ic svg{width:46px;height:46px;animation:floaty 4s ease-in-out infinite;}
+.hero-kcal{margin-top:10px;font-family:var(--fd);font-weight:700;font-size:12px;color:var(--accent);letter-spacing:.06em;}
+.illus-side{flex-shrink:0;}
+.illus-side svg{width:64px;height:64px;animation:floaty 4.5s ease-in-out infinite;
+  filter:drop-shadow(0 0 10px rgba(124,108,255,.4));}
+.illus-mini{float:right;margin:-2px 0 6px 10px;opacity:.9;}
+.illus-mini svg{width:42px;height:42px;filter:drop-shadow(0 0 8px rgba(0,229,255,.3));}
+.chart-empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:7px;color:var(--text2);font-size:11.5px;
+  background:radial-gradient(closest-side,rgba(5,8,16,.75),transparent);}
+.chart-empty svg{width:42px;height:42px;opacity:.9;}
+
+/* MEAL CONTEXT CHIPS */
+.chip{display:inline-block;margin-left:7px;padding:1.5px 8px;border-radius:10px;border:1px solid var(--border);
+  font-size:9px;color:var(--text2);vertical-align:1.5px;background:rgba(0,0,0,.28);white-space:nowrap;letter-spacing:.03em;}
+.chip.c-office{border-color:rgba(0,229,255,.25);color:var(--cyan);}
+.chip.c-home{border-color:rgba(62,242,165,.25);color:var(--green);}
+.chip.c-flex{border-color:rgba(167,139,250,.3);color:var(--violet);}
+.chip.c-indulgent{border-color:rgba(232,121,249,.3);color:var(--fuchsia);}
+
 /* RUN ROWS */
 .run-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);}
 .run-row:last-child{border-bottom:none;}
@@ -336,6 +361,7 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
     </div>
   </div>
   <div style="height:8px"></div>
+  <div class="card hero" id="goal-banner"></div>
   <div class="stat-grid">
     <div class="stat-card"><div class="stat-lbl" data-k="current_weight"></div><div class="stat-val" id="prog-cw">—</div><div class="stat-sub" id="prog-diff"></div></div>
     <div class="stat-card"><div class="stat-lbl" data-k="goal_weight"></div><div class="stat-val" id="prog-goal">—</div><div class="stat-sub" id="prog-rem"></div></div>
@@ -359,9 +385,14 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
   <div class="hdr"><div class="hdr-row"><div><div class="disp hdr-title grad-text">AI PLAN</div><div class="hdr-sub" data-k="powered_by"></div></div></div></div>
   <div style="height:8px"></div>
   <div class="card hero">
-    <div class="disp hero-focus" id="program-title">THE CUT</div>
-    <div class="hero-tag" id="program-dates"></div>
-    <div style="font-size:12px;color:var(--text2);margin-top:9px;line-height:1.5;" data-k="program_goal"></div>
+    <div style="display:flex;align-items:center;gap:12px;position:relative;z-index:1;">
+      <div style="flex:1;">
+        <div class="disp hero-focus" id="program-title">THE CUT</div>
+        <div class="hero-tag" id="program-dates"></div>
+      </div>
+      <div class="illus-side" id="program-illus"></div>
+    </div>
+    <div style="font-size:12px;color:var(--text2);margin-top:9px;line-height:1.5;position:relative;z-index:1;" data-k="program_goal"></div>
   </div>
   <div class="shdr"><span class="shdr-t" data-k="the_rules"></span></div>
   <div class="card" id="rules-card"></div>
@@ -554,6 +585,93 @@ const HICONS = ['🍷','🍬','💧','🔥','🥩','💪','😴','📱'];
 const HKEYS  = ['alcohol','dulce','agua','cal','macros','training','sleep','phone'];
 
 // ─────────────────────────────────────────────────────────────────
+// ILLUSTRATIONS — inline neon line-art, gradient ids unique per use
+// (a shared id would break when its first instance sits in a hidden screen)
+// ─────────────────────────────────────────────────────────────────
+let _ilc = 0;
+function _ilsvg(inner, id) {
+  return '<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+    '<defs><linearGradient id="' + id + '" x1="0" y1="0" x2="1" y2="1">' +
+    '<stop offset="0" stop-color="#00e5ff"/><stop offset="0.55" stop-color="#7c6cff"/>' +
+    '<stop offset="1" stop-color="#e879f9"/></linearGradient></defs>' + inner + '</svg>';
+}
+function _runner(id) {
+  return '<g stroke="url(#' + id + ')" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">' +
+    '<circle cx="43" cy="12" r="5"/>' +
+    '<path d="M41 20 L33 32"/>' +
+    '<path d="M40 23 L50 28"/><path d="M40 24 L29 19"/>' +
+    '<path d="M33 32 L42 40 L40 53"/><path d="M33 32 L24 43 L13 45"/>' +
+    '</g>';
+}
+function _star(id, x, y, s, op) {
+  return '<path d="M' + x + ' ' + (y-s) + ' l' + (s*0.4) + ' ' + (s*0.6) + ' ' + (s*0.6) + ' ' + (s*0.4) +
+    ' -' + (s*0.6) + ' ' + (s*0.4) + ' -' + (s*0.4) + ' ' + (s*0.6) + ' -' + (s*0.4) + ' -' + (s*0.6) +
+    ' -' + (s*0.6) + ' -' + (s*0.4) + ' ' + (s*0.6) + ' -' + (s*0.4) + ' Z" fill="url(#' + id + ')" opacity="' + op + '"/>';
+}
+const ILLUS_FN = {
+  run: id => _ilsvg(_runner(id) +
+    '<g stroke="url(#' + id + ')" stroke-width="2.5" stroke-linecap="round" opacity="0.45">' +
+    '<path d="M8 22 H17"/><path d="M5 31 H13"/><path d="M9 14 H15"/></g>', id),
+  runfree: id => _ilsvg(_runner(id) + _star(id, 52, 50, 6, 0.85) + _star(id, 14, 16, 4, 0.6), id),
+  lift: id => _ilsvg(
+    '<g stroke="url(#' + id + ')" stroke-width="3.5" stroke-linecap="round">' +
+    '<path d="M22 42 L42 22"/>' +
+    '<path d="M14 40 L24 50"/><path d="M12 44 L20 52"/>' +
+    '<path d="M40 14 L50 24"/><path d="M44 12 L52 20"/>' +
+    '</g>' + _star(id, 51, 49, 5, 0.75), id),
+  rest: id => _ilsvg(
+    '<path d="M40 9 A21 21 0 1 0 57 35 A16 16 0 0 1 40 9 Z" stroke="url(#' + id + ')" stroke-width="3" stroke-linejoin="round"/>' +
+    _star(id, 16, 18, 4.5, 0.8) + _star(id, 23, 41, 3.5, 0.6), id),
+  scale: id => _ilsvg(
+    '<rect x="14" y="12" width="36" height="40" rx="9" stroke="url(#' + id + ')" stroke-width="3"/>' +
+    '<path d="M23 30 A 11 11 0 0 1 41 30" stroke="url(#' + id + ')" stroke-width="3" stroke-linecap="round"/>' +
+    '<path d="M32 31 L38 23" stroke="url(#' + id + ')" stroke-width="3" stroke-linecap="round"/>' +
+    '<circle cx="32" cy="31" r="2.2" fill="url(#' + id + ')"/>', id),
+  target: id => _ilsvg(
+    '<circle cx="30" cy="36" r="17" stroke="url(#' + id + ')" stroke-width="3"/>' +
+    '<circle cx="30" cy="36" r="9.5" stroke="url(#' + id + ')" stroke-width="3"/>' +
+    '<circle cx="30" cy="36" r="2.5" fill="url(#' + id + ')"/>' +
+    '<g stroke="url(#' + id + ')" stroke-width="3" stroke-linecap="round">' +
+    '<path d="M30 36 L52 14"/><path d="M52 14 L44.5 15.5"/><path d="M52 14 L50.5 21.5"/></g>', id),
+  spark: id => _ilsvg(
+    '<path d="M32 8 C34.5 24 40 29.5 56 32 C40 34.5 34.5 40 32 56 C29.5 40 24 34.5 8 32 C24 29.5 29.5 24 32 8 Z" ' +
+    'stroke="url(#' + id + ')" stroke-width="2.5" stroke-linejoin="round" fill="rgba(124,108,255,0.10)"/>' +
+    _star(id, 51, 12, 4.5, 0.8), id),
+};
+function illus(name) { return ILLUS_FN[name]('ilg' + (++_ilc)); }
+
+// ─────────────────────────────────────────────────────────────────
+// GOAL — what the whole plan is derived from.
+// The current plan mirrors the cut tracker sheet exactly; when the
+// goal changes, a new plan is generated within MEAL CONSTRAINTS
+// (see goalContext(), which feeds this to Claude).
+// ─────────────────────────────────────────────────────────────────
+const GOAL = {
+  id: 'cut-2026-07',
+  type: 'fat_loss',
+  deadline: '2026-07-03',
+  fatKg: [2, 2.3],          // real fat to lose
+  scaleKg: [3, 3.8],        // scale drop incl. week-1 water
+  keepMuscle: true,
+  after: 'maintain through Stockholm trip',
+  title: {en:'−2 KG FAT', es:'−2 KG GRASA'},
+  sub: {en:'by 3 Jul 2026 · muscle kept · then Stockholm', es:'para el 3 jul 2026 · músculo intacto · luego Estocolmo'},
+};
+
+// Meal context tags — semantics behind each plan item:
+//   office    → tied to office days (salmon + rice office lunch)
+//   home      → belongs to home days (eggs, home salmon bowls)
+//   flex      → slots into ANY day (chilli con carne jars)
+//   any       → timing-flexible staple (skyr, oats, fruit, shakes) — no chip
+//   indulgent → weekend free meal under the daily cap
+const CTXCHIP = {
+  office:    {ic:'🏢', en:'office',  es:'oficina'},
+  home:      {ic:'🏠', en:'home',    es:'casa'},
+  flex:      {ic:'⇄',  en:'any day', es:'cualquier día'},
+  indulgent: {ic:'✨', en:'free',    es:'libre'},
+};
+
+// ─────────────────────────────────────────────────────────────────
 // PROGRAM DATA — "THE CUT" · 7 Jun → 3 Jul 2026 (from cut tracker sheet)
 // Weeks run Sunday → Saturday. Week 1 starts Sun 7 Jun 2026.
 // ─────────────────────────────────────────────────────────────────
@@ -574,25 +692,44 @@ const PROGRAM = {
   ],
 };
 
-// Daily plan keyed by dow (0=Sun..6=Sat)
+// Daily plan keyed by dow (0=Sun..6=Sat).
+// Items mirror the cut tracker sheet exactly; each carries a context
+// tag (c:) so the plan can be regenerated for a different goal without
+// losing its semantics — see CTXCHIP above and goalContext() below.
+//   where: where the day is spent · mode: strict target vs permissive cap
 const DAYPLAN = {
-  0: { focus:{en:'Run',es:'Carrera'}, tag:{en:'one indulgent meal · cap 2450',es:'una comida libre · tope 2450'}, cal:2450, isCap:true,
-       meals:[['2x Skyr',320],['Oats 50g + milk',280],['Banana',105],['Salmon + rice (home)',620],['__INDULGENT__',null]] },
-  1: { focus:{en:'Run',es:'Carrera'}, tag:{en:'home',es:'casa'}, cal:1960,
-       meals:[['2x Skyr',320],['Oats 50g + milk',280],['Banana',105],['Chilli con carne jar + pasta 70g',810],['Light protein shake',260],['Apple',95],['Almonds 15g',90]] },
-  2: { focus:{en:'Chest · Tri · Abs',es:'Pecho · Trí · Abs'}, tag:{en:'office',es:'oficina'}, cal:2065,
-       meals:[['2x Skyr + banana (pre-lift)',425],['Salmon + rice (office lunch)',620],['Light shake + almonds (3pm)',280],['Chilli con carne jar',560],['Pasta 50g dry',180]],
+  0: { illus:'runfree', where:'home', mode:'permissive',
+       focus:{en:'Run',es:'Carrera'}, tag:{en:'one indulgent meal · cap 2450',es:'una comida libre · tope 2450'}, cal:2450, isCap:true,
+       meals:[{n:'2x Skyr',k:320,c:'any'},{n:'Oats 50g + milk',k:280,c:'any'},{n:'Banana',k:105,c:'any'},
+              {n:'Salmon + rice (home)',k:620,c:'home'},{n:'__INDULGENT__',k:null,c:'indulgent'}] },
+  1: { illus:'run', where:'home', mode:'strict',
+       focus:{en:'Run',es:'Carrera'}, tag:{en:'home',es:'casa'}, cal:1960,
+       meals:[{n:'2x Skyr',k:320,c:'any'},{n:'Oats 50g + milk',k:280,c:'any'},{n:'Banana',k:105,c:'any'},
+              {n:'Chilli con carne jar + pasta 70g',k:810,c:'flex'},{n:'Light protein shake',k:260,c:'any'},
+              {n:'Apple',k:95,c:'any'},{n:'Almonds 15g',k:90,c:'any'}] },
+  2: { illus:'lift', where:'office', mode:'strict',
+       focus:{en:'Chest · Tri · Abs',es:'Pecho · Trí · Abs'}, tag:{en:'office',es:'oficina'}, cal:2065,
+       meals:[{n:'2x Skyr + banana (pre-lift)',k:425,c:'any'},{n:'Salmon + rice (office lunch)',k:620,c:'office'},
+              {n:'Light shake + almonds (3pm)',k:280,c:'any'},{n:'Chilli con carne jar',k:560,c:'flex'},{n:'Pasta 50g dry',k:180,c:'any'}],
        workout:[['Barbell bench press','4 × 6-8'],['Incline dumbbell press','3 × 8-10'],['Cable fly','3 × 12-15'],['Close-grip bench / OH ext','3 × 8-10'],['Triceps pushdown','3 × 12-15'],['Hanging leg raises','3 × 10-15'],['Cable crunch','3 × 15']] },
-  3: { focus:{en:'Back · Biceps',es:'Espalda · Bíceps'}, tag:{en:'office',es:'oficina'}, cal:2065,
-       meals:[['2x Skyr + banana (pre-lift)',425],['Salmon + rice (office lunch)',620],['Light shake + almonds (3pm)',280],['Chilli con carne jar',560],['Pasta 50g dry',180]],
+  3: { illus:'lift', where:'office', mode:'strict',
+       focus:{en:'Back · Biceps',es:'Espalda · Bíceps'}, tag:{en:'office',es:'oficina'}, cal:2065,
+       meals:[{n:'2x Skyr + banana (pre-lift)',k:425,c:'any'},{n:'Salmon + rice (office lunch)',k:620,c:'office'},
+              {n:'Light shake + almonds (3pm)',k:280,c:'any'},{n:'Chilli con carne jar',k:560,c:'flex'},{n:'Pasta 50g dry',k:180,c:'any'}],
        workout:[['Weighted pull-ups','4 × 6-10'],['Barbell row','4 × 8-10'],['Seated cable row','3 × 10-12'],['Face pulls','3 × 15'],['EZ-bar curl','3 × 8-10'],['Incline / hammer curl','3 × 10-12']] },
-  4: { focus:{en:'Legs',es:'Pierna'}, tag:{en:'office · highest day',es:'oficina · día más alto'}, cal:2345,
-       meals:[['2x Skyr + small oats + banana',655],['Salmon + rice (office lunch)',620],['Light shake (3pm)',260],['Chilli con carne jar',560],['Pasta 70g dry',250]],
+  4: { illus:'lift', where:'office', mode:'strict',
+       focus:{en:'Legs',es:'Pierna'}, tag:{en:'office · highest day',es:'oficina · día más alto'}, cal:2345,
+       meals:[{n:'2x Skyr + small oats + banana',k:655,c:'any'},{n:'Salmon + rice (office lunch)',k:620,c:'office'},
+              {n:'Light shake (3pm)',k:260,c:'any'},{n:'Chilli con carne jar',k:560,c:'flex'},{n:'Pasta 70g dry',k:250,c:'any'}],
        workout:[['Barbell back squat','4 × 6-8'],['Romanian deadlift','3 × 8-10'],['Leg press','3 × 10-12'],['Leg curl','3 × 10-12'],['Standing calf raise','4 × 12-15']] },
-  5: { focus:{en:'Rest',es:'Descanso'}, tag:{en:'home',es:'casa'}, cal:2075,
-       meals:[['2x Skyr',320],['3 eggs scrambled',220],['Salmon + rice + veggies',620],['Light protein shake',260],['Apple',95],['Chilli con carne jar',560]] },
-  6: { focus:{en:'Run / Cycle',es:'Carrera / Bici'}, tag:{en:'one indulgent meal · cap 2450',es:'una comida libre · tope 2450'}, cal:2450, isCap:true,
-       meals:[['2x Skyr',320],['Oats 50g + milk',280],['Banana',105],['3 eggs scrambled',220],['__INDULGENT__',null]] },
+  5: { illus:'rest', where:'home', mode:'strict',
+       focus:{en:'Rest',es:'Descanso'}, tag:{en:'home',es:'casa'}, cal:2075,
+       meals:[{n:'2x Skyr',k:320,c:'any'},{n:'3 eggs scrambled',k:220,c:'home'},{n:'Salmon + rice + veggies',k:620,c:'home'},
+              {n:'Light protein shake',k:260,c:'any'},{n:'Apple',k:95,c:'any'},{n:'Chilli con carne jar',k:560,c:'flex'}] },
+  6: { illus:'runfree', where:'home', mode:'permissive',
+       focus:{en:'Run / Cycle',es:'Carrera / Bici'}, tag:{en:'one indulgent meal · cap 2450',es:'una comida libre · tope 2450'}, cal:2450, isCap:true,
+       meals:[{n:'2x Skyr',k:320,c:'any'},{n:'Oats 50g + milk',k:280,c:'any'},{n:'Banana',k:105,c:'any'},
+              {n:'3 eggs scrambled',k:220,c:'home'},{n:'__INDULGENT__',k:null,c:'indulgent'}] },
 };
 
 // ─────────────────────────────────────────────────────────────────
@@ -735,10 +872,29 @@ function renderToday() {
   document.getElementById('hdr-today').textContent = lang === 'en' ? 'TODAY' : 'HOY';
   document.getElementById('sub-today').textContent = ds[dow] + '  ·  W' + wn + '/' + PROGRAM.weeks + '  ·  ' + fmtDate(now);
 
-  // Hero — today's focus from the program
+  // Hero — today's focus, calorie ring + day-type illustration
+  const day0 = getDay(todayKey());
+  const consumed = day0.cal || 0;
+  const RC = 2 * Math.PI * 40;
+  const rp = Math.min(consumed / tCal, 1);
   document.getElementById('hero-card').innerHTML =
-    '<div class="disp hero-focus">' + plan.focus[lang] + (runKm ? ' · ' + runKm + ' KM' : '') + '</div>' +
-    '<div class="hero-tag">' + plan.tag[lang] + '</div>';
+    '<div style="display:flex;align-items:center;gap:12px;position:relative;z-index:1;">' +
+      '<div style="flex:1;">' +
+        '<div class="disp hero-focus">' + plan.focus[lang] + (runKm ? ' · ' + runKm + ' KM' : '') + '</div>' +
+        '<div class="hero-tag">' + plan.tag[lang] + '</div>' +
+        '<div class="hero-kcal" id="hero-kcal">' + consumed + ' / ' + tCal + ' kcal</div>' +
+      '</div>' +
+      '<div class="ringwrap">' +
+        '<svg viewBox="0 0 92 92"><defs><linearGradient id="hring" x1="0" y1="0" x2="1" y2="1">' +
+        '<stop offset="0" stop-color="#00e5ff"/><stop offset="1" stop-color="#e879f9"/></linearGradient></defs>' +
+        '<circle cx="46" cy="46" r="40" fill="none" stroke="rgba(120,160,255,0.12)" stroke-width="6"/>' +
+        '<circle id="hero-arc" cx="46" cy="46" r="40" fill="none" stroke="url(#hring)" stroke-width="6" stroke-linecap="round" ' +
+          'stroke-dasharray="' + RC.toFixed(1) + '" stroke-dashoffset="' + (RC * (1 - rp)).toFixed(1) + '" ' +
+          'transform="rotate(-90 46 46)" style="transition:stroke-dashoffset .5s cubic-bezier(.2,.8,.3,1);"/>' +
+        '</svg>' +
+        '<div class="ring-ic">' + illus(plan.illus) + '</div>' +
+      '</div>' +
+    '</div>';
 
   document.getElementById('training-inp').placeholder = t('training_placeholder');
 
@@ -766,14 +922,16 @@ function renderMeals(dk, plan, tCal) {
   const day = getDay(dk);
   const list = document.getElementById('meal-list');
   list.innerHTML = plan.meals.map((m, i) => {
-    const name = m[0] === '__INDULGENT__' ? t('indulgent') : m[0];
+    const name = m.c === 'indulgent' ? t('indulgent') : m.n;
+    const cc = CTXCHIP[m.c];
+    const chip = cc ? '<span class="chip c-' + m.c + '">' + cc.ic + ' ' + cc[lang] + '</span>' : '';
     const on = !!day.meals[i];
     return '<div class="chk-row' + (on ? ' on' : '') + '" onclick="toggleMeal(\'' + dk + '\',' + i + ')">' +
       '<div class="chk' + (on ? ' on' : '') + '">' + (on ? '✓' : '') + '</div>' +
-      '<div class="chk-name">' + name + '</div>' +
-      '<div class="chk-kcal">' + (m[1] != null ? m[1] : '?') + '</div></div>';
+      '<div class="chk-name">' + name + chip + '</div>' +
+      '<div class="chk-kcal">' + (m.k != null ? m.k : '?') + '</div></div>';
   }).join('');
-  const checked = plan.meals.reduce((s, m, i) => s + (day.meals[i] && m[1] ? m[1] : 0), 0);
+  const checked = plan.meals.reduce((s, m, i) => s + (day.meals[i] && m.k ? m.k : 0), 0);
   document.getElementById('meal-badge').textContent = checked + ' / ' + tCal;
 }
 
@@ -782,7 +940,7 @@ function toggleMeal(dk, i) {
   if (day.meals[i]) delete day.meals[i]; else day.meals[i] = 1;
   // keep logged kcal in sync with the checklist; manual edits still override
   const plan = DAYPLAN[todayDow()];
-  const sum = plan.meals.reduce((s, m, j) => s + (day.meals[j] && m[1] ? m[1] : 0), 0);
+  const sum = plan.meals.reduce((s, m, j) => s + (day.meals[j] && m.k ? m.k : 0), 0);
   day.cal = sum || null;
   persist();
   renderToday();
@@ -883,6 +1041,14 @@ function onCalInput(val, tCal) {
   const bc  = n > tCal * 1.05 ? 'var(--red)' : (n && n < tCal * 0.75) ? 'var(--amber)' : 'var(--grad)';
   const bar = document.getElementById('cal-bar');
   if (bar) { bar.style.width = pct + '%'; bar.style.background = bc; }
+  // keep the hero ring in sync
+  const arc = document.getElementById('hero-arc');
+  if (arc) {
+    const RC = 2 * Math.PI * 40;
+    arc.style.strokeDashoffset = (RC * (1 - Math.min((n || 0) / tCal, 1))).toFixed(1);
+  }
+  const hk = document.getElementById('hero-kcal');
+  if (hk) hk.textContent = (n || 0) + ' / ' + tCal + ' kcal';
 }
 
 function saveTodayField(field, val) {
@@ -976,7 +1142,7 @@ function renderWeek() {
   const runCard = document.getElementById('run-card');
   if (runPlan) {
     let totalKm = 0;
-    runCard.innerHTML = dks.map((dk, dow) => {
+    runCard.innerHTML = '<span class="illus-mini">' + illus('run') + '</span>' + dks.map((dk, dow) => {
       const km = runPlan[dow];
       if (!km) return '';
       totalKm += km;
@@ -1017,6 +1183,16 @@ function renderProgress() {
   const entries = weightEntries();
   const latest = entries[entries.length - 1];
   const prev   = entries.length > 1 ? entries[entries.length - 2] : null;
+
+  // Goal banner — the target everything else is derived from
+  document.getElementById('goal-banner').innerHTML =
+    '<div style="display:flex;align-items:center;gap:12px;position:relative;z-index:1;">' +
+      '<div style="flex:1;">' +
+        '<div class="disp hero-focus grad-text" style="font-size:22px;">' + GOAL.title[lang] + '</div>' +
+        '<div class="hero-tag">' + GOAL.sub[lang] + '</div>' +
+      '</div>' +
+      '<div class="illus-side">' + illus('target') + '</div>' +
+    '</div>';
 
   document.getElementById('prog-cw').innerHTML   = latest ? latest.weight + ' <span style="font-size:14px;color:var(--text2);">kg</span>' : '—';
   document.getElementById('prog-goal').innerHTML = settings.goalWeight + ' <span style="font-size:14px;color:var(--text2);">kg</span>';
@@ -1082,7 +1258,8 @@ function renderWeightChart(entries) {
     '<stop offset="0" stop-color="#00e5ff"/><stop offset="1" stop-color="#e879f9"/></linearGradient></defs>' +
     '<path d="' + expPath + '" fill="none" stroke="rgba(167,139,250,0.6)" stroke-width="1.5" stroke-dasharray="5,4"/>' +
     (aPts.length ? '<path d="' + aPath + '" fill="none" stroke="url(#lg)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>' : '') +
-    dots + wkLabels + '</svg>';
+    dots + wkLabels + '</svg>' +
+    (aPts.length ? '' : '<div class="chart-empty">' + illus('scale') + '<span>' + t('ins_weigh_in') + '</span></div>');
 }
 
 function renderWeighinTable(entries) {
@@ -1207,6 +1384,7 @@ function computeInsights() {
 function renderPlan() {
   document.getElementById('program-dates').textContent =
     (lang === 'en' ? '7 JUN → 3 JUL 2026 · THEN STOCKHOLM' : '7 JUN → 3 JUL 2026 · LUEGO ESTOCOLMO');
+  document.getElementById('program-illus').innerHTML = illus('spark');
 
   document.getElementById('rules-card').innerHTML = L[lang].rules.map((r, i) =>
     '<div class="rule"><div class="rule-n">0' + (i+1) + '</div><div class="rule-t">' + r + '</div></div>'
@@ -1236,6 +1414,30 @@ function prefillAsk(p) {
 // Requires an API key (Settings → Claude access) plus the
 // anthropic-dangerous-direct-browser-access header for CORS.
 // ─────────────────────────────────────────────────────────────────
+function goalContext() {
+  // Derive meal semantics from the plan's context tags so Claude can
+  // rebuild the plan around a new goal without losing the constraints.
+  const officeDays = [], homeDays = [], permissiveDays = [];
+  const dnames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  for (let d = 0; d < 7; d++) {
+    (DAYPLAN[d].where === 'office' ? officeDays : homeDays).push(dnames[d]);
+    if (DAYPLAN[d].mode === 'permissive') permissiveDays.push(dnames[d]);
+  }
+  return 'GOAL (the entire plan below is derived from this):\n' +
+    '- Type: fat loss. Reach ' + GOAL.deadline + ' with ~' + GOAL.fatKg[0] + '-' + GOAL.fatKg[1] +
+    ' kg less body FAT (' + GOAL.scaleKg[0] + '-' + GOAL.scaleKg[1] + ' kg on the scale incl. week-1 water), muscle kept. After: ' + GOAL.after + '.\n\n' +
+    'MEAL PLAN SEMANTICS (constraints behind the menu, not a rigid list):\n' +
+    '- "office" items are tied to office days (' + officeDays.join('/') + '): salmon + rice is the office lunch — only fits days the user is at the office.\n' +
+    '- "home" items (eggs, home salmon bowls) belong to home days (' + homeDays.join('/') + ').\n' +
+    '- Chilli con carne jars are FLEXIBLE — they can slot into any day.\n' +
+    '- Staples (skyr, oats, banana, shakes, apple, almonds) are timing-flexible.\n' +
+    '- Weekends (' + permissiveDays.join('/') + ') are more permissive: ONE indulgent meal + drinks under a 2450 kcal daily cap, decided sober in advance.\n' +
+    '- Daily kcal follows the day\'s training load; protein stays high (~' + settings.protein + ' g/day).\n\n' +
+    'IMPORTANT: the current plan mirrors the user\'s spreadsheet exactly — do not propose replacing it unprompted. ' +
+    'If the user asks for a DIFFERENT goal (new deadline, more/less fat loss, a maintenance phase, muscle gain), generate a new plan that honors ' +
+    'these same constraints (office/home/flexible/weekend rules, training-load-matched calories, high protein) and give an expected weekly weigh-in trajectory.';
+}
+
 async function askClaude() {
   const q = document.getElementById('custom-q').value.trim();
   if (!q) return;
@@ -1265,6 +1467,7 @@ async function askClaude() {
     '- Weekly calorie budget: 15,410 kcal. Day targets: Mon 1960 (run), Tue/Wed 2065 (lift), Thu 2345 (legs, highest), Fri 2075 (rest), Sat/Sun cap 2450 (run + one indulgent meal).\n' +
     '- Lifting: Tue chest/tri/abs, Wed back/biceps, Thu legs. Running progression (km Mon/Sat/Sun): W1 9/12/9, W2 10/13/11, W3 11/14/12, W4 11/13/11. Mostly easy zone 2.\n' +
     '- Rules: week 2 will stall, hold calories; weekends one indulgent meal with drinks decided sober; keep lifts heavy.\n\n' +
+    goalContext() + '\n\n' +
     'USER STATE (today = ' + todayKey() + ', week ' + wn + ' of 4, day plan: ' + plan.focus.en + '):\n' +
     '- Current weight: ' + (latestW ? latestW.weight + ' kg (logged ' + latestW.dk + ')' : 'not yet logged') + '. Goal: ' + settings.goalWeight + ' kg.\n' +
     '- This week so far: ' + (weekCals.length ? consumed + ' kcal logged over ' + weekCals.length + ' day(s)' : 'no calories logged') + '. Protein target: ' + settings.protein + ' g/day.\n\n' +
