@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="LeanTracker">
 <meta name="theme-color" content="#050810">
-<title>LeanTracker · The Cut</title>
+<title>LeanTracker</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -388,7 +388,7 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
 <!-- BOOT SEQUENCE -->
 <div id="boot">
   <div class="disp grad-text" style="font-size:29px;letter-spacing:.18em;">LEANTRACKER</div>
-  <div class="boot-sub">THE CUT PROTOCOL — INITIALIZING</div>
+  <div class="boot-sub">INITIALIZING</div>
   <div class="boot-bar"><div class="boot-fill"></div></div>
 </div>
 
@@ -503,7 +503,7 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
   <div class="card hero">
     <div style="display:flex;align-items:center;gap:12px;position:relative;z-index:1;">
       <div style="flex:1;">
-        <div class="disp hero-focus" id="program-title">THE CUT</div>
+        <div class="disp hero-focus" id="program-title"></div>
         <div class="hero-tag" id="program-dates"></div>
       </div>
       <div class="illus-side" id="program-illus"></div>
@@ -799,7 +799,7 @@ es:{
   ins_weight_ahead:'Adelantado al plan', ins_weight_behind:'Detrás de la curva', ins_weigh_in:'Registra un pesaje',
 }};
 
-const APP_VERSION = 'v6.1';  // bump on release — shown in Settings so a stale cache is easy to spot
+const APP_VERSION = 'v6.2';  // bump on release — shown in Settings so a stale cache is easy to spot
 
 const HKEYS = ['alcohol','dulce','agua','cal','macros','training','sleep','phone'];
 
@@ -967,8 +967,15 @@ function loadPlan() {
 function savePlan(p) {
   PLAN = p;
   localStorage.setItem('lt_plan', JSON.stringify(p));
+  // personal targets come from the plan, not from app defaults
   if (p.goalWeight) settings.goalWeight = p.goalWeight;
   if (p.startDate)  settings.startDate  = p.startDate;
+  if (p.protein)    settings.protein    = p.protein;
+  const cals = Object.values(p.days || {}).map(d => d.cal).filter(c => typeof c === 'number');
+  if (cals.length) {
+    settings.calMin = Math.min.apply(null, cals);
+    settings.calMax = Math.max.apply(null, cals);
+  }
   localStorage.setItem('lt_settings', JSON.stringify(settings));
   applyPlan();
 }
@@ -984,7 +991,9 @@ function savePlan(p) {
 // calendar week maps to a relative number (≤0 before the program).
 let PROG_DAYS = 27;                          // overwritten by applyPlan()
 function w1Start() {
-  const parts = ((PLAN && PLAN.startDate) || settings.startDate || '2026-06-07').split('-').map(Number);
+  const sd = (PLAN && PLAN.startDate) || settings.startDate;
+  if (!sd) return getWeekStart(new Date());  // unconfigured: this week = W1
+  const parts = sd.split('-').map(Number);
   const d = new Date(parts[0], parts[1] - 1, parts[2]);
   d.setHours(0,0,0,0);
   d.setDate(d.getDate() - d.getDay());      // snap to that week's Sunday
@@ -1052,7 +1061,7 @@ function getWeekKeys(wn) {
 // DATA STORE  (key = "YYYY-MM-DD")
 // ─────────────────────────────────────────────────────────────────
 let DB = JSON.parse(localStorage.getItem('lt_db') || 'null');
-let settings = JSON.parse(localStorage.getItem('lt_settings') || '{"calMin":1960,"calMax":2450,"protein":160,"goalWeight":83.5}');
+let settings = JSON.parse(localStorage.getItem('lt_settings') || '{"calMin":1800,"calMax":2200,"protein":120,"goalWeight":null}');
 let apiKey = localStorage.getItem('lt_apikey') || '';
 let lang = localStorage.getItem('lt_lang') || 'en';
 
@@ -1324,7 +1333,7 @@ function renderToday() {
     '<div class="titem"><div class="titem-val">' + settings.protein + 'g</div><div class="titem-lbl">' + t('t_prot') + '</div></div>' +
     '<div class="titem"><div class="titem-val">' + (runKm ? runKm + 'km' : '—') + '</div><div class="titem-lbl">' + t('t_run') + '</div></div>' +
     '<div class="titem"><div class="titem-val">' + (plan ? PROGRAM.weekBudget : (settings.calMax || 2000) * 7).toLocaleString() + '</div><div class="titem-lbl">' + t('t_budget') + '</div></div>' +
-    '<div class="titem"><div class="titem-val">' + settings.goalWeight + 'kg</div><div class="titem-lbl">' + t('t_goal') + '</div></div>' +
+    '<div class="titem"><div class="titem-val">' + (settings.goalWeight ? settings.goalWeight + 'kg' : '—') + '</div><div class="titem-lbl">' + t('t_goal') + '</div></div>' +
     '<div class="titem"><div class="titem-val">0</div><div class="titem-lbl">' + t('t_alc') + '</div></div>';
 
   const dk  = selKey();
@@ -1768,7 +1777,8 @@ function renderProgress() {
     '</div>';
 
   document.getElementById('prog-cw').innerHTML   = latest ? latest.weight + ' <span style="font-size:14px;color:var(--text2);">kg</span>' : '—';
-  document.getElementById('prog-goal').innerHTML = settings.goalWeight + ' <span style="font-size:14px;color:var(--text2);">kg</span>';
+  document.getElementById('prog-goal').innerHTML = settings.goalWeight
+    ? settings.goalWeight + ' <span style="font-size:14px;color:var(--text2);">kg</span>' : '—';
 
   if (prev && latest) {
     const diff  = (latest.weight - prev.weight).toFixed(1);
@@ -1779,7 +1789,7 @@ function renderProgress() {
     document.getElementById('prog-diff').textContent = '';
   }
 
-  if (latest) {
+  if (latest && settings.goalWeight) {
     const rem = (latest.weight - settings.goalWeight).toFixed(1);
     document.getElementById('prog-rem').textContent = rem > 0 ? rem + ' kg ' + t('to_goal') : t('goal_reached');
   } else {
@@ -1800,8 +1810,9 @@ function renderWeightChart(entries) {
   if (hasPlan()) PROGRAM.expected.forEach((w, i) => expPts.push({x:i+1, w}));
   const maxX = hasPlan() ? PROGRAM.weeks : Math.max(entries.length - 1, 1);
 
-  const allW = expPts.map(p=>p.w).concat(entries.map(e=>e.weight), entries.length || hasPlan() ? [settings.goalWeight] : []);
-  if (!allW.length) allW.push(settings.goalWeight);
+  const allW = expPts.map(p=>p.w).concat(entries.map(e=>e.weight),
+    settings.goalWeight && (entries.length || hasPlan()) ? [settings.goalWeight] : []);
+  if (!allW.length) allW.push(75);   // arbitrary axis seed for the empty state
   const minV = Math.min(...allW) - 0.6;
   const maxV = Math.max(...allW) + 0.6;
   const sx = x => px + (x / maxX) * (W - px*2);
@@ -2134,8 +2145,8 @@ function goalContext() {
     '- "home"-tagged items belong to home days (' + homeDays.join('/') + ').\n' +
     '- "flex"-tagged items can slot into ANY day.\n' +
     '- "any"-tagged staples are timing-flexible.\n' +
-    '- Weekends (' + permissiveDays.join('/') + ') are more permissive: ONE indulgent meal + drinks under a 2450 kcal daily cap, decided sober in advance.\n' +
-    '- Daily kcal follows the day\'s training load; protein stays high (~' + settings.protein + ' g/day).\n\n' +
+    '- Permissive days (' + (permissiveDays.join('/') || 'none') + ') allow ONE indulgent meal + drinks under that day\'s kcal cap, decided in advance.\n' +
+    '- Daily kcal follows the day\'s training load; protein stays high' + (settings.protein ? ' (~' + settings.protein + ' g/day)' : '') + '.\n\n' +
     'IMPORTANT: the current plan mirrors the user\'s spreadsheet exactly — do not propose replacing it unprompted. ' +
     'If the user asks for a DIFFERENT goal (new deadline, more/less fat loss, a maintenance phase, muscle gain), generate a new plan that honors ' +
     'these same constraints (office/home/flexible/weekend rules, training-load-matched calories, high protein) and give an expected weekly weigh-in trajectory.';
@@ -2344,7 +2355,7 @@ const _DAYSCH = {type:'object', properties:{
 const PLAN_SCHEMA = {type:'object', properties:{
   schema:{type:'integer'}, name:{type:'string'}, startDate:{type:'string'},
   weeks:{type:'integer'}, progDays:{type:'integer'}, weekBudget:{type:'integer'},
-  startWeight:{type:'number'}, goalWeight:{type:'number'},
+  startWeight:{type:'number'}, goalWeight:{type:'number'}, protein:{type:'integer'},
   expected:{type:'array', items:{type:'number'}},
   runs:{type:'array', items:{type:'array', items:{type:'object',
     properties:{dow:{type:'integer'}, km:{type:'number'}}, required:['dow','km'], additionalProperties:false}}},
@@ -2355,7 +2366,7 @@ const PLAN_SCHEMA = {type:'object', properties:{
   days:{type:'object', properties:{'0':_DAYSCH,'1':_DAYSCH,'2':_DAYSCH,'3':_DAYSCH,'4':_DAYSCH,'5':_DAYSCH,'6':_DAYSCH},
     required:['0','1','2','3','4','5','6'], additionalProperties:false}},
   required:['schema','name','startDate','weeks','progDays','weekBudget','startWeight','goalWeight',
-            'expected','runs','goal','rules','days'], additionalProperties:false};
+            'protein','expected','runs','goal','rules','days'], additionalProperties:false};
 
 function trackingDigest() {
   const days = Object.keys(DB).filter(isActiveDay).sort();
@@ -2464,7 +2475,7 @@ function renderSettingsForm() {
   document.getElementById('s-calmin').value = settings.calMin;
   document.getElementById('s-calmax').value = settings.calMax;
   document.getElementById('s-prot').value   = settings.protein;
-  document.getElementById('s-goal').value   = settings.goalWeight;
+  document.getElementById('s-goal').value   = settings.goalWeight ?? '';
   document.getElementById('s-start').value  = (PLAN && PLAN.startDate) || settings.startDate || '';
   document.getElementById('s-apikey').value = apiKey;
   document.getElementById('plan-status').innerHTML = PLAN
@@ -2474,12 +2485,12 @@ function renderSettingsForm() {
 }
 
 function saveSettings() {
-  settings.calMin     = parseInt(document.getElementById('s-calmin').value)   || 1960;
-  settings.calMax     = parseInt(document.getElementById('s-calmax').value)   || 2450;
-  settings.protein    = parseInt(document.getElementById('s-prot').value)     || 160;
-  settings.goalWeight = parseFloat(document.getElementById('s-goal').value)   || 83.5;
-  settings.startDate  = document.getElementById('s-start').value || settings.startDate || '2026-06-07';
-  if (PLAN) {
+  settings.calMin     = parseInt(document.getElementById('s-calmin').value)   || 1800;
+  settings.calMax     = parseInt(document.getElementById('s-calmax').value)   || 2200;
+  settings.protein    = parseInt(document.getElementById('s-prot').value)     || 120;
+  settings.goalWeight = parseFloat(document.getElementById('s-goal').value)   || null;
+  settings.startDate  = document.getElementById('s-start').value || settings.startDate || null;
+  if (PLAN && settings.startDate) {
     PLAN.startDate = settings.startDate;
     localStorage.setItem('lt_plan', JSON.stringify(PLAN));
   }
