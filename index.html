@@ -449,6 +449,7 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
   <div class="card" style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:12px;" data-k="backup_note"></div>
   <div class="shdr"><span class="shdr-t" data-k="about_pwa"></span></div>
   <div class="card" style="font-size:12px;color:var(--text2);line-height:1.7;" data-k="pwa_instructions"></div>
+  <div id="version-tag" style="text-align:center;font-size:10px;color:var(--text3);font-family:var(--fd);letter-spacing:.1em;padding:4px 0 2px;"></div>
   <div style="height:14px;"></div>
 </div>
 
@@ -581,6 +582,8 @@ es:{
   ins_weight_ahead:'Adelantado al plan', ins_weight_behind:'Detrás de la curva', ins_weigh_in:'Registra un pesaje',
 }};
 
+const APP_VERSION = 'v3.1';  // bump on release — shown in Settings so a stale cache is easy to spot
+
 const HICONS = ['🍷','🍬','💧','🔥','🥩','💪','😴','📱'];
 const HKEYS  = ['alcohol','dulce','agua','cal','macros','training','sleep','phone'];
 
@@ -590,8 +593,10 @@ const HKEYS  = ['alcohol','dulce','agua','cal','macros','training','sleep','phon
 // ─────────────────────────────────────────────────────────────────
 let _ilc = 0;
 function _ilsvg(inner, id) {
+  // userSpaceOnUse: bounding-box gradients don't paint on perfectly
+  // horizontal/vertical strokes (zero-height bbox), e.g. speed lines
   return '<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">' +
-    '<defs><linearGradient id="' + id + '" x1="0" y1="0" x2="1" y2="1">' +
+    '<defs><linearGradient id="' + id + '" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="64" y2="64">' +
     '<stop offset="0" stop-color="#00e5ff"/><stop offset="0.55" stop-color="#7c6cff"/>' +
     '<stop offset="1" stop-color="#e879f9"/></linearGradient></defs>' + inner + '</svg>';
 }
@@ -1574,6 +1579,7 @@ seedHistory();            // no-op if DB already exists in localStorage
 viewWn = todayWn();       // week view starts on current program week
 applyI18n();
 renderToday();
+document.getElementById('version-tag').textContent = 'LEANTRACKER ' + APP_VERSION;
 </script>
 </body>
 </html>
