@@ -691,7 +691,7 @@ en:{
   habit_grid:'Habit grid', calories_week:'Calories', training_log:'Training log',
   week_budget:'Calorie budget', run_plan:'Running plan',
   on_target:'On target', over:'Over', low:'Low',
-  progress:'Progress', your_journey:'7 Jun → 3 Jul · then Stockholm', log_body:'Log body',
+  progress:'Progress', your_journey:'Your journey', log_body:'Log body',
   current_weight:'Current', goal_weight:'Goal', weight_trend:'Weight trend',
   weigh_ins:'Weekly weigh-ins', actual:'Actual', expected:'Expected',
   weekly_compliance:'Weekly compliance %',
@@ -719,7 +719,7 @@ en:{
   ask_placeholder:'Ask anything about your plan, nutrition, training...',
   to_goal:'to goal', goal_reached:'Goal reached!', vs_expected:'vs expected',
   indulgent:'Indulgent meal + drinks (log kcal manually)',
-  streak_w:'STREAK', dest:'STOCKHOLM',
+  streak_w:'STREAK',
   meals_done:'ALL MEALS LOGGED ✦', habits_done:'ALL HABITS CRUSHED ✦', workout_done:'WORKOUT COMPLETE ✦',
   runs_done:'ALL RUNS LOGGED ✦', habit_radar:'Habit radar',
   program_start:'Program start (week 1)', cal_logged:'logged', cal_program:'program week',
@@ -748,7 +748,7 @@ es:{
   habit_grid:'Cuadrícula', calories_week:'Calorías', training_log:'Registro entreno',
   week_budget:'Presupuesto calórico', run_plan:'Plan de carrera',
   on_target:'En objetivo', over:'Excedido', low:'Bajo',
-  progress:'Progreso', your_journey:'7 jun → 3 jul · luego Estocolmo', log_body:'Registrar',
+  progress:'Progreso', your_journey:'Tu progreso', log_body:'Registrar',
   current_weight:'Actual', goal_weight:'Meta', weight_trend:'Tendencia peso',
   weigh_ins:'Pesajes semanales', actual:'Real', expected:'Esperado',
   weekly_compliance:'% Cumplimiento semanal',
@@ -776,7 +776,7 @@ es:{
   ask_placeholder:'Pregunta sobre tu plan, nutrición, entrenamiento...',
   to_goal:'hasta la meta', goal_reached:'¡Meta alcanzada!', vs_expected:'vs esperado',
   indulgent:'Comida libre + bebidas (registra kcal a mano)',
-  streak_w:'RACHA', dest:'ESTOCOLMO',
+  streak_w:'RACHA',
   meals_done:'COMIDAS COMPLETAS ✦', habits_done:'HÁBITOS COMPLETOS ✦', workout_done:'ENTRENO COMPLETO ✦',
   runs_done:'CARRERAS COMPLETAS ✦', habit_radar:'Radar de hábitos',
   program_start:'Inicio del programa (semana 1)', cal_logged:'registrado', cal_program:'semana del programa',
@@ -799,7 +799,7 @@ es:{
   ins_weight_ahead:'Adelantado al plan', ins_weight_behind:'Detrás de la curva', ins_weigh_in:'Registra un pesaje',
 }};
 
-const APP_VERSION = 'v6.0';  // bump on release — shown in Settings so a stale cache is easy to spot
+const APP_VERSION = 'v6.1';  // bump on release — shown in Settings so a stale cache is easy to spot
 
 const HKEYS = ['alcohol','dulce','agua','cal','macros','training','sleep','phone'];
 
@@ -906,10 +906,10 @@ const ILLUS_FN = {
 function illus(name) { return ILLUS_FN[name]('ilg' + (++_ilc)); }
 
 // Meal context tags — semantics behind each plan item:
-//   office    → tied to office days (salmon + rice office lunch)
-//   home      → belongs to home days (eggs, home salmon bowls)
-//   flex      → slots into ANY day (chilli con carne jars)
-//   any       → timing-flexible staple (skyr, oats, fruit, shakes) — no chip
+//   office    → tied to office days (e.g. the office lunch)
+//   home      → belongs to home days (home-cooked meals)
+//   flex      → slots into ANY day (batch-cooked staples)
+//   any       → timing-flexible staple (snacks, shakes, fruit) — no chip
 //   indulgent → weekend free meal under the daily cap
 const CTXCHIP = {
   office:    {en:'office',  es:'oficina'},
@@ -939,88 +939,11 @@ function cicon(name, size) {
 }
 
 // ───────────────────────────────────────────────────────────────
-// PLAN — the program is DATA, stored in localStorage ('lt_plan').
-// DEFAULT_PLAN is the original cut-tracker program; it is auto-migrated
-// into storage for existing installs. Fresh installs start plan-less
-// (observation mode) until a plan is imported or generated.
+// PLAN — the program is DATA, stored ONLY in this device's
+// localStorage ('lt_plan'). The app ships with no plan: import a plan
+// JSON or generate one (Settings → Plan). Nothing personal lives in
+// this file, so other users of the app never see your program.
 // ───────────────────────────────────────────────────────────────
-const DEFAULT_PLAN = {
-  schema: 1,
-  name: 'THE CUT',
-  startDate: '2026-06-07',                // W1 = the week containing this date
-  weeks: 4,
-  progDays: 27,                            // Sun start → Fri end
-  weekBudget: 15410,                       // kcal per week (targets + weekend caps)
-  startWeight: 87,
-  goalWeight: 83.5,
-  expected: [85.3, 84.7, 84.1, 83.5],     // expected kg at end of W1..W4
-  // Planned runs per program week, km — keyed by dow (0=Sun..6=Sat)
-  runs: [
-    {1:9, 6:12, 0:9},    // W1: Mon 9 · Sat 12 · Sun 9  (30 km)
-    {1:10, 6:13, 0:11},  // W2: Mon 10 · Sat 13 · Sun 11 (34 km)
-    {1:11, 6:14, 0:12},  // W3: Mon 11 · Sat 14 · Sun 12 (37 km)
-    {1:11, 6:13, 0:11},  // W4: Mon 11 · Sat 13 · Sun 11 (35 km)
-  ],
-  goal: {
-    type: 'fat_loss',
-    fatKg: [2, 2.3],          // real fat to lose
-    scaleKg: [3, 3.8],        // scale drop incl. week-1 water
-    keepMuscle: true,
-    after: 'maintain through Stockholm trip',
-    title: {en:'−2 KG FAT', es:'−2 KG GRASA'},
-    sub: {en:'by 3 Jul 2026 · muscle kept · then Stockholm', es:'para el 3 jul 2026 · músculo intacto · luego Estocolmo'},
-    desc: {en:'Goal: −3 to −3.8 kg on the scale (~2–2.3 kg real fat + week-1 water). Kept, not regained.',
-           es:'Meta: −3 a −3.8 kg en báscula (~2–2.3 kg de grasa real + agua de la semana 1). Mantenido, no recuperado.'},
-  },
-  rules: {
-    en: [
-      'Week 2 will stall — hold the line, do not cut calories. Adjusting UP if ravenous/sleeping badly is winning.',
-      'Weekends: anchor breakfast first, ONE indulgent meal, drinks decided sober before going out.',
-      'Keep lifts heavy — if bench/squat/row hold while the scale drops, the loss is fat, not muscle.'
-    ],
-    es: [
-      'La semana 2 se estancará — aguanta, no recortes calorías. Subirlas si tienes hambre voraz o duermes mal es ganar.',
-      'Fines de semana: ancla el desayuno primero, UNA comida libre, bebidas decididas sobrio antes de salir.',
-      'Mantén los pesos pesados — si banca/sentadilla/remo aguantan mientras baja la báscula, pierdes grasa, no músculo.'
-    ]
-  },
-  // Daily plans keyed by dow (0=Sun..6=Sat); meals carry context tags
-  // (c:) so a new plan can be generated within the same constraints.
-  days: {
-  0: { illus:'runfree', where:'home', mode:'permissive',
-       focus:{en:'Run',es:'Carrera'}, tag:{en:'one indulgent meal · cap 2450',es:'una comida libre · tope 2450'}, cal:2450, isCap:true,
-       meals:[{n:'2x Skyr',k:320,c:'any'},{n:'Oats 50g + milk',k:280,c:'any'},{n:'Banana',k:105,c:'any'},
-              {n:'Salmon + rice (home)',k:620,c:'home'},{n:'__INDULGENT__',k:null,c:'indulgent'}] },
-  1: { illus:'run', where:'home', mode:'strict',
-       focus:{en:'Run',es:'Carrera'}, tag:{en:'home',es:'casa'}, cal:1960,
-       meals:[{n:'2x Skyr',k:320,c:'any'},{n:'Oats 50g + milk',k:280,c:'any'},{n:'Banana',k:105,c:'any'},
-              {n:'Chilli con carne jar + pasta 70g',k:810,c:'flex'},{n:'Light protein shake',k:260,c:'any'},
-              {n:'Apple',k:95,c:'any'},{n:'Almonds 15g',k:90,c:'any'}] },
-  2: { illus:'lift', where:'office', mode:'strict',
-       focus:{en:'Chest · Tri · Abs',es:'Pecho · Trí · Abs'}, tag:{en:'office',es:'oficina'}, cal:2065,
-       meals:[{n:'2x Skyr + banana (pre-lift)',k:425,c:'any'},{n:'Salmon + rice (office lunch)',k:620,c:'office'},
-              {n:'Light shake + almonds (3pm)',k:280,c:'any'},{n:'Chilli con carne jar',k:560,c:'flex'},{n:'Pasta 50g dry',k:180,c:'any'}],
-       workout:[['Barbell bench press','4 × 6-8'],['Incline dumbbell press','3 × 8-10'],['Cable fly','3 × 12-15'],['Close-grip bench / OH ext','3 × 8-10'],['Triceps pushdown','3 × 12-15'],['Hanging leg raises','3 × 10-15'],['Cable crunch','3 × 15']] },
-  3: { illus:'lift', where:'office', mode:'strict',
-       focus:{en:'Back · Biceps',es:'Espalda · Bíceps'}, tag:{en:'office',es:'oficina'}, cal:2065,
-       meals:[{n:'2x Skyr + banana (pre-lift)',k:425,c:'any'},{n:'Salmon + rice (office lunch)',k:620,c:'office'},
-              {n:'Light shake + almonds (3pm)',k:280,c:'any'},{n:'Chilli con carne jar',k:560,c:'flex'},{n:'Pasta 50g dry',k:180,c:'any'}],
-       workout:[['Weighted pull-ups','4 × 6-10'],['Barbell row','4 × 8-10'],['Seated cable row','3 × 10-12'],['Face pulls','3 × 15'],['EZ-bar curl','3 × 8-10'],['Incline / hammer curl','3 × 10-12']] },
-  4: { illus:'lift', where:'office', mode:'strict',
-       focus:{en:'Legs',es:'Pierna'}, tag:{en:'office · highest day',es:'oficina · día más alto'}, cal:2345,
-       meals:[{n:'2x Skyr + small oats + banana',k:655,c:'any'},{n:'Salmon + rice (office lunch)',k:620,c:'office'},
-              {n:'Light shake (3pm)',k:260,c:'any'},{n:'Chilli con carne jar',k:560,c:'flex'},{n:'Pasta 70g dry',k:250,c:'any'}],
-       workout:[['Barbell back squat','4 × 6-8'],['Romanian deadlift','3 × 8-10'],['Leg press','3 × 10-12'],['Leg curl','3 × 10-12'],['Standing calf raise','4 × 12-15']] },
-  5: { illus:'rest', where:'home', mode:'strict',
-       focus:{en:'Rest',es:'Descanso'}, tag:{en:'home',es:'casa'}, cal:2075,
-       meals:[{n:'2x Skyr',k:320,c:'any'},{n:'3 eggs scrambled',k:220,c:'home'},{n:'Salmon + rice + veggies',k:620,c:'home'},
-              {n:'Light protein shake',k:260,c:'any'},{n:'Apple',k:95,c:'any'},{n:'Chilli con carne jar',k:560,c:'flex'}] },
-  6: { illus:'runfree', where:'home', mode:'permissive',
-       focus:{en:'Run / Cycle',es:'Carrera / Bici'}, tag:{en:'one indulgent meal · cap 2450',es:'una comida libre · tope 2450'}, cal:2450, isCap:true,
-       meals:[{n:'2x Skyr',k:320,c:'any'},{n:'Oats 50g + milk',k:280,c:'any'},{n:'Banana',k:105,c:'any'},
-              {n:'3 eggs scrambled',k:220,c:'home'},{n:'__INDULGENT__',k:null,c:'indulgent'}] },
-  },
-};
 
 // Active plan state — hydrated by loadPlan() at boot
 let PLAN = null, PROGRAM = null, DAYPLAN = null, GOAL = null;
@@ -1038,15 +961,7 @@ function applyPlan() {
   }
 }
 function loadPlan() {
-  let p = JSON.parse(localStorage.getItem('lt_plan') || 'null');
-  // auto-migrate: an existing install (has a tracking store) keeps the
-  // built-in cut plan; truly fresh installs start in observation mode
-  if (!p && localStorage.getItem('lt_db') !== null) {
-    p = JSON.parse(JSON.stringify(DEFAULT_PLAN));
-    if (settings.startDate) p.startDate = settings.startDate;
-    localStorage.setItem('lt_plan', JSON.stringify(p));
-  }
-  PLAN = p;
+  PLAN = JSON.parse(localStorage.getItem('lt_plan') || 'null');
   applyPlan();
 }
 function savePlan(p) {
@@ -1329,7 +1244,7 @@ function setTicker() {
     const wn = Math.min(Math.max(todayWn(), 1), PROGRAM.weeks);
     const plan = DAYPLAN[todayDow()];
     txt = '» W' + wn + '/' + PROGRAM.weeks + ' ─ ' + plan.focus[lang].toUpperCase() +
-      ' ─ ' + plan.cal + ' KCAL ─ ' + t('streak_w') + ' ' + calcStreak() + 'D ─ T−' + daysLeft() + ' ' + t('dest');
+      ' ─ ' + plan.cal + ' KCAL ─ ' + t('streak_w') + ' ' + calcStreak() + 'D ─ T−' + daysLeft() + (PLAN.dest ? ' ' + PLAN.dest : '');
   } else {
     txt = '» ' + t('tk_noplan') + ' ─ ' + (settings.calMax || 2000) + ' KCAL ─ ' +
       t('streak_w') + ' ' + calcStreak() + 'D';
@@ -1399,7 +1314,7 @@ function renderToday() {
       }
       return '<div class="seg-wrap">' + segs + '</div>' +
         '<div class="seg-lbls"><span>D' + (di + 1) + '/' + PROG_DAYS + '</span>' +
-        '<span>T−' + daysLeft() + ' → ' + t('dest') + '</span></div>';
+        '<span>T−' + daysLeft() + (PLAN.dest ? ' → ' + PLAN.dest : '') + '</span></div>';
     })();
 
   document.getElementById('training-inp').placeholder = t('training_placeholder');
@@ -2056,16 +1971,16 @@ function saveBodyEntry() {
 const QP = {
   en:[
     'How do I handle the week-2 stall without panicking or cutting calories?',
-    'Suggest swaps for the chilli con carne jar with the same kcal and protein.',
+    'Suggest swaps for one of my plan meals with the same kcal and protein.',
     'My weakest habit is sleep — give me 5 practical tips given my training schedule.',
-    'How should I taper running and food the final week before Stockholm?',
+    'How should I taper training and food in the final week of my plan?',
     'Based on my data, what is the single biggest change I should make next week?',
   ],
   es:[
     '¿Cómo manejo el estancamiento de la semana 2 sin entrar en pánico ni recortar calorías?',
-    'Sugiere sustitutos del bote de chilli con carne con las mismas kcal y proteína.',
+    'Sugiere sustitutos de una comida de mi plan con las mismas kcal y proteína.',
     'Mi hábito más débil es el sueño — dame 5 consejos prácticos según mi horario de entreno.',
-    '¿Cómo reduzco la carrera y la comida la última semana antes de Estocolmo?',
+    '¿Cómo reduzco el entreno y la comida en la última semana de mi plan?',
     'Con mis datos, ¿cuál es el cambio más importante para la próxima semana?',
   ]
 };
@@ -2215,10 +2130,10 @@ function goalContext() {
     : '- ' + ((GOAL.desc && GOAL.desc.en) || GOAL.type) + ' Deadline: ' + dkey(progEnd()) + '.';
   return 'GOAL (the entire plan below is derived from this):\n' + goalLine + '\n\n' +
     'MEAL PLAN SEMANTICS (constraints behind the menu, not a rigid list):\n' +
-    '- "office" items are tied to office days (' + officeDays.join('/') + '): salmon + rice is the office lunch — only fits days the user is at the office.\n' +
-    '- "home" items (eggs, home salmon bowls) belong to home days (' + homeDays.join('/') + ').\n' +
-    '- Chilli con carne jars are FLEXIBLE — they can slot into any day.\n' +
-    '- Staples (skyr, oats, banana, shakes, apple, almonds) are timing-flexible.\n' +
+    '- "office"-tagged items only fit office days (' + officeDays.join('/') + ').\n' +
+    '- "home"-tagged items belong to home days (' + homeDays.join('/') + ').\n' +
+    '- "flex"-tagged items can slot into ANY day.\n' +
+    '- "any"-tagged staples are timing-flexible.\n' +
     '- Weekends (' + permissiveDays.join('/') + ') are more permissive: ONE indulgent meal + drinks under a 2450 kcal daily cap, decided sober in advance.\n' +
     '- Daily kcal follows the day\'s training load; protein stays high (~' + settings.protein + ' g/day).\n\n' +
     'IMPORTANT: the current plan mirrors the user\'s spreadsheet exactly — do not propose replacing it unprompted. ' +
