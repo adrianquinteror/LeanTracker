@@ -673,7 +673,7 @@ es:{
   ins_weight_ahead:'Adelantado al plan', ins_weight_behind:'Detrás de la curva', ins_weigh_in:'Registra un pesaje',
 }};
 
-const APP_VERSION = 'v4.2';  // bump on release — shown in Settings so a stale cache is easy to spot
+const APP_VERSION = 'v4.3';  // bump on release — shown in Settings so a stale cache is easy to spot
 
 const HKEYS = ['alcohol','dulce','agua','cal','macros','training','sleep','phone'];
 
@@ -804,11 +804,30 @@ const GOAL = {
 //   any       → timing-flexible staple (skyr, oats, fruit, shakes) — no chip
 //   indulgent → weekend free meal under the daily cap
 const CTXCHIP = {
-  office:    {ic:'🏢', en:'office',  es:'oficina'},
-  home:      {ic:'🏠', en:'home',    es:'casa'},
-  flex:      {ic:'⇄',  en:'any day', es:'cualquier día'},
-  indulgent: {ic:'✨', en:'free',    es:'libre'},
+  office:    {en:'office',  es:'oficina'},
+  home:      {en:'home',    es:'casa'},
+  flex:      {en:'any day', es:'cualquier día'},
+  indulgent: {en:'free',    es:'libre'},
 };
+
+// currentColor micro-icons — inherit the color of whatever they sit in
+const CICON_FN = {
+  office:    '<rect x="5" y="4" width="9" height="16" rx="1"/><path d="M14 9 H19 V20"/><path d="M4 20 H20"/><path d="M8 8 H11"/><path d="M8 12 H11"/><path d="M8 16 H11"/>',
+  home:      '<path d="M4 11 L12 4 L20 11"/><path d="M6.5 9.5 V20 H17.5 V9.5"/><path d="M10 20 V14.5 H14 V20"/>',
+  flex:      '<path d="M4 9 H17 L14 6"/><path d="M20 15 H7 L10 18"/>',
+  indulgent: '<path d="M12 4 C12.8 9 15 11.2 20 12 C15 12.8 12.8 15 12 20 C11.2 15 9 12.8 4 12 C9 11.2 11.2 9 12 4 Z"/>',
+  alert:     '<path d="M12 4.5 L21 19.5 H3 Z"/><path d="M12 10.5 V14"/><circle cx="12" cy="16.6" r="0.7" fill="currentColor"/>',
+  check:     '<circle cx="12" cy="12" r="8.5"/><path d="M8.2 12.2 L10.8 14.8 L15.8 9.5"/>',
+  trenddown: '<path d="M4 8 L10 14 L13.5 10.5 L20 17"/><path d="M20 17 H14.5"/><path d="M20 17 V11.5"/>',
+  trendup:   '<path d="M4 16 L10 10 L13.5 13.5 L20 7"/><path d="M20 7 H14.5"/><path d="M20 7 V12.5"/>',
+  scalemini: '<rect x="5" y="4.5" width="14" height="15" rx="3.5"/><path d="M8.6 11.5 A 4.2 4.2 0 0 1 15.4 11.5"/><path d="M12 12 L14.3 8.9"/>',
+};
+function cicon(name, size) {
+  const s = size || 13;
+  return '<svg width="' + s + '" height="' + s + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1.5px;" ' +
+    'xmlns="http://www.w3.org/2000/svg">' + CICON_FN[name] + '</svg>';
+}
 
 // ─────────────────────────────────────────────────────────────────
 // PROGRAM DATA — "THE CUT" · 7 Jun → 3 Jul 2026 (from cut tracker sheet)
@@ -1207,7 +1226,7 @@ function renderMeals(dk, plan, tCal) {
   list.innerHTML = plan.meals.map((m, i) => {
     const name = m.c === 'indulgent' ? t('indulgent') : m.n;
     const cc = CTXCHIP[m.c];
-    const chip = cc ? '<span class="chip c-' + m.c + '">' + cc.ic + ' ' + cc[lang] + '</span>' : '';
+    const chip = cc ? '<span class="chip c-' + m.c + '">' + cicon(m.c, 10) + ' ' + cc[lang] + '</span>' : '';
     const on = !!day.meals[i];
     return '<div class="chk-row' + (on ? ' on' : '') + '" onclick="toggleMeal(\'' + dk + '\',' + i + ',this)">' +
       '<div class="chk' + (on ? ' on' : '') + '">' + (on ? CHK_SVG : '') + '</div>' +
@@ -1594,7 +1613,7 @@ function renderProgress() {
 
   if (latest) {
     const rem = (latest.weight - settings.goalWeight).toFixed(1);
-    document.getElementById('prog-rem').textContent = rem > 0 ? rem + ' kg ' + t('to_goal') : '🎯 ' + t('goal_reached');
+    document.getElementById('prog-rem').textContent = rem > 0 ? rem + ' kg ' + t('to_goal') : t('goal_reached');
   } else {
     document.getElementById('prog-rem').textContent = '';
   }
@@ -1745,7 +1764,7 @@ function computeInsights() {
   const expectedShare = PROGRAM.weekBudget * (elapsed / 7);
   if (consumed > 0) {
     const hot = consumed > expectedShare * 1.05;
-    out.push({t: hot ? 'a' : 'g', icon: hot ? '⚠️' : '✅',
+    out.push({t: hot ? 'a' : 'g', icon: hot ? 'alert' : 'check',
       title: hot ? t('ins_budget_hot') : t('ins_budget_ok'),
       body: consumed.toLocaleString() + ' / ' + PROGRAM.weekBudget.toLocaleString() + ' kcal · W' + wn});
   }
@@ -1757,11 +1776,11 @@ function computeInsights() {
     const expIdx = Math.min(Math.max(latest.wn, 1), PROGRAM.weeks) - 1;
     const exp = PROGRAM.expected[expIdx];
     const d = latest.weight - exp;
-    out.push({t: d <= 0.3 ? 'g' : 'a', icon: d <= 0.3 ? '📉' : '📈',
+    out.push({t: d <= 0.3 ? 'g' : 'a', icon: d <= 0.3 ? 'trenddown' : 'trendup',
       title: d <= 0.3 ? t('ins_weight_ahead') : t('ins_weight_behind'),
       body: latest.weight + ' kg ' + t('actual').toLowerCase() + ' · ' + exp + ' kg ' + t('expected').toLowerCase() + ' (W' + Math.min(latest.wn, PROGRAM.weeks) + ')'});
   } else {
-    out.push({t:'a', icon:'⚖️', title: t('ins_weigh_in'),
+    out.push({t:'a', icon:'scalemini', title: t('ins_weigh_in'),
       body: lang === 'en' ? 'Same day, morning, after toilet, before food.' : 'Mismo día, por la mañana, después del baño, antes de comer.'});
   }
   return out;
@@ -1777,7 +1796,9 @@ function renderPlan() {
   ).join('');
 
   document.getElementById('insights-wrap').innerHTML = computeInsights().map(ins =>
-    '<div class="ins-card ' + ins.t + '"><div class="ins-t">' + ins.icon + ' ' + ins.title + '</div><div class="ins-b">' + ins.body + '</div></div>'
+    '<div class="ins-card ' + ins.t + '"><div class="ins-t">' +
+    '<span style="color:' + ({g:'var(--green)', a:'var(--amber)', r:'var(--red)'}[ins.t] || 'var(--accent)') + ';">' + cicon(ins.icon, 14) + '</span> ' +
+    ins.title + '</div><div class="ins-b">' + ins.body + '</div></div>'
   ).join('');
 
   document.getElementById('quick-prompts').innerHTML = QP[lang].map(p =>
