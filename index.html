@@ -422,6 +422,7 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
   <div class="shdr"><span class="shdr-t" data-k="training_today"></span></div>
   <div class="card" style="padding:11px 14px;">
     <input class="inp" id="training-inp" style="margin:0;" oninput="saveTodayField('training',this.value)">
+    <div id="burned-line" style="font-size:11.5px;color:var(--text2);margin-top:8px;display:none;"></div>
   </div>
   <div style="height:14px;"></div>
 </div>
@@ -575,6 +576,12 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
     <input id="imp-inp" type="file" accept=".json" style="display:none;" onchange="importData(this)">
   </div>
   <div class="card" style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:12px;" data-k="backup_note"></div>
+  <div class="shdr"><span class="shdr-t" data-k="ah_section"></span></div>
+  <div class="export-row">
+    <button class="exp-btn" onclick="document.getElementById('ah-inp').click()" data-k="ah_import"></button>
+    <input id="ah-inp" type="file" accept=".xml,.zip" style="display:none;" onchange="importAppleHealth(this)">
+  </div>
+  <div class="card" style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:12px;" data-k="ah_note"></div>
   <div class="shdr"><span class="shdr-t" data-k="about_pwa"></span></div>
   <div class="card" style="font-size:12px;color:var(--text2);line-height:1.7;" data-k="pwa_instructions"></div>
   <div id="version-tag" style="text-align:center;font-size:10px;color:var(--text3);font-family:var(--fd);letter-spacing:.1em;padding:4px 0 2px;"></div>
@@ -707,6 +714,11 @@ en:{
   pwa_instructions:'In Safari → tap Share → "Add to Home Screen" → Add. Opens full-screen like a native app.',
   data_backup:'Data backup', export_btn:'Export JSON', import_btn:'Import JSON',
   backup_note:'Export your data regularly. localStorage is cleared if you reset Safari — a backup JSON keeps your history safe.',
+  ah_section:'Apple Health', ah_import:'Import Apple Health',
+  ah_note:'iPhone Health app → tap your profile photo → Export All Health Data. Save the export.zip (e.g. to Files) and choose it here — or unzip it and pick export.xml. Pulls in calories eaten, calories burned (Active Energy) and workout types per day. Existing logs for those days are updated.',
+  cal_burned:'kcal burned', reading_ah:'Reading Apple Health…',
+  ah_zip_err:'Couldn\'t open the zip. Unzip it and import the export.xml file instead.',
+  ah_nodata:'No Health data found in that file.', ah_failed:'Import failed: ',
   tab_today:'Today', tab_week:'Week', tab_progress:'Progress', tab_plan:'Plan', tab_settings:'More',
   powered_by:'Powered by Claude',
   t_cal:'kcal target', t_prot:'protein', t_run:'run today', t_goal:'goal weight', t_alc:'alcohol', t_budget:'wk budget',
@@ -764,6 +776,11 @@ es:{
   pwa_instructions:'En Safari → Compartir → "Agregar a pantalla de inicio" → Agregar. Se abre a pantalla completa como app nativa.',
   data_backup:'Copia de seguridad', export_btn:'Exportar JSON', import_btn:'Importar JSON',
   backup_note:'Exporta tus datos regularmente. Si Safari limpia datos del sitio perderás tu historial — el JSON lo protege.',
+  ah_section:'Apple Salud', ah_import:'Importar Apple Salud',
+  ah_note:'App Salud del iPhone → toca tu foto de perfil → Exportar todos los datos de salud. Guarda el export.zip (p. ej. en Archivos) y elígelo aquí — o descomprímelo y elige export.xml. Importa calorías comidas, calorías quemadas (Energía Activa) y tipos de entrenamiento por día. Los registros de esos días se actualizan.',
+  cal_burned:'kcal quemadas', reading_ah:'Leyendo Apple Salud…',
+  ah_zip_err:'No se pudo abrir el zip. Descomprímelo e importa el archivo export.xml.',
+  ah_nodata:'No se encontraron datos de Salud en ese archivo.', ah_failed:'Error al importar: ',
   tab_today:'Hoy', tab_week:'Semana', tab_progress:'Progreso', tab_plan:'Plan', tab_settings:'Más',
   powered_by:'Con tecnología Claude',
   t_cal:'kcal objetivo', t_prot:'proteína', t_run:'carrera hoy', t_goal:'peso meta', t_alc:'alcohol', t_budget:'presup sem',
@@ -1149,7 +1166,7 @@ function programDayIdx() {
 function isActiveDay(dk) {
   const d = DB[dk];
   if (!d) return false;
-  if (d.cal || d.training || d.weight || d.waist || d.runDone) return true;
+  if (d.cal || d.training || d.weight || d.waist || d.runDone || d.burned) return true;
   if (d.habits && Object.values(d.habits).some(v => v !== null && v !== undefined)) return true;
   if (d.meals && Object.keys(d.meals).length) return true;
   if (d.lifts && Object.keys(d.lifts).length) return true;
@@ -1367,6 +1384,11 @@ function renderToday() {
 
   const ti = document.getElementById('training-inp');
   if (ti) ti.value = day.training || '';
+  const bl = document.getElementById('burned-line');
+  if (bl) {
+    if (day.burned) { bl.style.display = 'block'; bl.textContent = '🔥 ' + day.burned + ' ' + t('cal_burned'); }
+    else bl.style.display = 'none';
+  }
 }
 
 // 7-day strip for the selected week — tap a day to edit it
@@ -2534,6 +2556,128 @@ function importData(input) {
   };
   reader.readAsText(file);
   input.value = '';
+}
+
+// ─────────────────────────────────────────────────────────────────
+// APPLE HEALTH IMPORT
+//
+// Apple gives no live web API. The supported path is Health app →
+// "Export All Health Data", which produces export.zip containing
+// export.xml. We accept either the .zip (extracted in-browser) or a
+// raw export.xml, then aggregate per day:
+//   · DietaryEnergyConsumed → calories eaten   (day.cal)
+//   · ActiveEnergyBurned     → calories burned  (day.burned)
+//   · Workout activityType   → workout label    (day.training)
+// ─────────────────────────────────────────────────────────────────
+function humanizeWorkout(type) {
+  const s = type.replace('HKWorkoutActivityType', '');
+  const map = {
+    TraditionalStrengthTraining:'Strength', FunctionalStrengthTraining:'Strength',
+    HighIntensityIntervalTraining:'HIIT', CoreTraining:'Core', MixedCardio:'Cardio',
+    MixedMetabolicCardioTraining:'Cardio', PreparationAndRecovery:'Mobility'
+  };
+  return map[s] || s.replace(/([a-z])([A-Z])/g, '$1 $2');
+}
+
+function parseAppleHealth(xml) {
+  const days = {};
+  const get = (s, n) => { const m = s.match(new RegExp(n + '="([^"]*)"')); return m ? m[1] : null; };
+  const toKcal = (v, u) => { v = parseFloat(v) || 0; return (u && /kj/i.test(u)) ? v / 4.184 : v; };
+  const dayOf = s => { const dk = (s || '').slice(0, 10); return /^\d{4}-\d{2}-\d{2}$/.test(dk) ? dk : null; };
+  const D = dk => days[dk] || (days[dk] = { cal: 0, burned: 0, wk: null });
+
+  let m;
+  const rRe = /<Record\s+([^>]*?)\/?>/g;
+  while ((m = rRe.exec(xml))) {
+    const a = m[1];
+    const eaten = a.indexOf('DietaryEnergyConsumed') >= 0;
+    const burned = a.indexOf('ActiveEnergyBurned') >= 0;
+    if (!eaten && !burned) continue;
+    const dk = dayOf(get(a, 'startDate')); if (!dk) continue;
+    const val = toKcal(get(a, 'value'), get(a, 'unit'));
+    if (eaten) D(dk).cal += val; else D(dk).burned += val;
+  }
+  const wRe = /<Workout\s+([^>]*?)\/?>/g;
+  while ((m = wRe.exec(xml))) {
+    const a = m[1];
+    const type = get(a, 'workoutActivityType'); if (!type) continue;
+    const dk = dayOf(get(a, 'startDate')); if (!dk) continue;
+    const d = D(dk); (d.wk || (d.wk = new Set())).add(humanizeWorkout(type));
+  }
+  return Object.keys(days).length ? days : null;
+}
+
+// Minimal ZIP reader: locate export.xml via the central directory and
+// inflate it with DecompressionStream (raw deflate). Falls back to a
+// clear "unzip it yourself" message on anything unusual (zip64, etc.).
+async function readZipExportXml(buf) {
+  const dv = new DataView(buf), u8 = new Uint8Array(buf), td = new TextDecoder();
+  let eocd = -1;
+  for (let i = buf.byteLength - 22; i >= 0 && i > buf.byteLength - 22 - 65536; i--) {
+    if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd < 0) throw new Error('zip');
+  const cdOffset = dv.getUint32(eocd + 16, true), cdCount = dv.getUint16(eocd + 10, true);
+  if (cdOffset === 0xffffffff) throw new Error('zip64');
+  let p = cdOffset, target = null;
+  for (let n = 0; n < cdCount; n++) {
+    if (dv.getUint32(p, true) !== 0x02014b50) break;
+    const method = dv.getUint16(p + 10, true);
+    const compSize = dv.getUint32(p + 20, true);
+    const nameLen = dv.getUint16(p + 28, true);
+    const extraLen = dv.getUint16(p + 30, true);
+    const commLen = dv.getUint16(p + 32, true);
+    const localOff = dv.getUint32(p + 42, true);
+    const name = td.decode(u8.subarray(p + 46, p + 46 + nameLen));
+    if (name.endsWith('export.xml')) {
+      if (compSize === 0xffffffff || localOff === 0xffffffff) throw new Error('zip64');
+      target = { method, compSize, localOff }; break;
+    }
+    p += 46 + nameLen + extraLen + commLen;
+  }
+  if (!target) throw new Error('noxml');
+  const lo = target.localOff;
+  if (dv.getUint32(lo, true) !== 0x04034b50) throw new Error('zip');
+  const dataStart = lo + 30 + dv.getUint16(lo + 26, true) + dv.getUint16(lo + 28, true);
+  const comp = u8.subarray(dataStart, dataStart + target.compSize);
+  if (target.method === 0) return td.decode(comp);
+  if (typeof DecompressionStream === 'undefined') throw new Error('nodecomp');
+  const stream = new Blob([comp]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+  return td.decode(await new Response(stream).arrayBuffer());
+}
+
+async function importAppleHealth(input) {
+  const file = input.files[0]; input.value = '';
+  if (!file) return;
+  const en = lang === 'en';
+  try {
+    toast(t('reading_ah'));
+    let xml;
+    if (/\.zip$/i.test(file.name)) {
+      try { xml = await readZipExportXml(await file.arrayBuffer()); }
+      catch (err) { alert(t('ah_zip_err')); return; }
+    } else {
+      xml = await file.text();
+    }
+    const days = parseAppleHealth(xml);
+    if (!days) { alert(t('ah_nodata')); return; }
+
+    let cCal = 0, cBurn = 0, cWk = 0;
+    for (const dk in days) {
+      const a = days[dk], day = getDay(dk);
+      if (a.cal > 0.5)    { day.cal = Math.round(a.cal); cCal++; }
+      if (a.burned > 0.5) { day.burned = Math.round(a.burned); cBurn++; }
+      if (a.wk && a.wk.size) { day.training = [...a.wk].join(', '); cWk++; }
+    }
+    persist();
+    renderActive();
+    updateStreak();
+    alert(en
+      ? '✓ Apple Health imported\n' + cCal + ' day(s) with calories eaten\n' + cBurn + ' day(s) with calories burned\n' + cWk + ' day(s) with workouts'
+      : '✓ Apple Salud importado\n' + cCal + ' día(s) con calorías comidas\n' + cBurn + ' día(s) con calorías quemadas\n' + cWk + ' día(s) con entrenamientos');
+  } catch (e) {
+    alert(t('ah_failed') + (e && e.message ? e.message : e));
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────
