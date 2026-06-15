@@ -503,8 +503,11 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
     <div style="display:flex;gap:14px;margin-top:4px;">
       <span style="font-size:10.5px;color:var(--text2);"><span style="display:inline-block;width:14px;height:2px;background:var(--accent);margin-right:4px;vertical-align:middle;"></span><span data-k="actual"></span></span>
       <span style="font-size:10.5px;color:var(--text2);"><span style="display:inline-block;width:14px;height:0;border-top:2px dashed var(--violet);margin-right:4px;vertical-align:middle;"></span><span data-k="expected"></span></span>
+      <span style="font-size:10.5px;color:var(--text2);"><span style="display:inline-block;width:14px;height:0;border-top:2px dotted var(--amber);margin-right:4px;vertical-align:middle;"></span><span data-k="cf_forecast_legend"></span></span>
     </div>
   </div>
+  <div class="shdr" id="cal-forecast-hdr" style="display:none;"><span class="shdr-t" data-k="cal_forecast"></span></div>
+  <div id="cal-forecast" class="card" style="display:none;"></div>
   <div class="shdr"><span class="shdr-t" data-k="weigh_ins"></span></div>
   <div class="card"><table class="wtable" id="weighin-table"></table></div>
   <div class="shdr"><span class="shdr-t" data-k="weekly_compliance"></span></div>
@@ -716,6 +719,11 @@ en:{
   bud_gain_sub:'Past maintenance — projected ≈ {kg} kg of weight gain. Maintenance over {days} is ≈ {maint} kcal.',
   tdee_label:'Maintenance / TDEE (kcal per day)',
   tdee_note:'Daily calories that hold your weight steady. Claude estimates this when generating a plan; set it here to override. Drives the maintenance vs weight-gain ranges in the Weekly view.',
+  cal_forecast:'Calorie forecast', per_week:'week', cf_forecast_legend:'Forecast',
+  cf_gain:'Gaining', cf_loss:'Losing', cf_maint:'Holding',
+  cf_basis:'From {n} logged days averaging {avg} kcal vs {maint} maintenance.',
+  cf_proj:'Projected {date}: ≈ {kg} kg',
+  cf_eta:'On this pace, goal reached around {date}.',
   on_target:'On target', over:'Over', low:'Low',
   progress:'Progress', your_journey:'Your journey', log_body:'Log body',
   current_weight:'Current', goal_weight:'Goal', weight_trend:'Weight trend',
@@ -780,6 +788,11 @@ es:{
   bud_gain_sub:'Por encima del mantenimiento — aumento proyectado ≈ {kg} kg. El mantenimiento en {days} es ≈ {maint} kcal.',
   tdee_label:'Mantenimiento / TDEE (kcal por día)',
   tdee_note:'Calorías diarias que mantienen tu peso estable. Claude lo estima al generar un plan; configúralo aquí para anularlo. Define los rangos de mantenimiento y aumento de peso en la Vista semanal.',
+  cal_forecast:'Pronóstico calórico', per_week:'semana', cf_forecast_legend:'Pronóstico',
+  cf_gain:'Ganando', cf_loss:'Perdiendo', cf_maint:'Manteniendo',
+  cf_basis:'De {n} días registrados con media de {avg} kcal vs {maint} de mantenimiento.',
+  cf_proj:'Proyectado {date}: ≈ {kg} kg',
+  cf_eta:'A este ritmo, meta alcanzada cerca del {date}.',
   on_target:'En objetivo', over:'Excedido', low:'Bajo',
   progress:'Progreso', your_journey:'Tu progreso', log_body:'Registrar',
   current_weight:'Actual', goal_weight:'Meta', weight_trend:'Tendencia peso',
@@ -832,7 +845,7 @@ es:{
   ins_weight_ahead:'Adelantado al plan', ins_weight_behind:'Detrás de la curva', ins_weigh_in:'Registra un pesaje',
 }};
 
-const APP_VERSION = 'v6.2';  // bump on release — shown in Settings so a stale cache is easy to spot
+const APP_VERSION = 'v6.3';  // bump on release — shown in Settings so a stale cache is easy to spot
 
 const HKEYS = ['alcohol','dulce','agua','cal','macros','training','sleep','phone'];
 
@@ -985,6 +998,20 @@ function hasPlan() { return !!PLAN; }
 // Daily maintenance calories (TDEE): a user override in Settings wins, then the
 // value Claude estimated for the active plan. null when neither is known.
 function getTDEE() { return settings.tdee || (PLAN && PLAN.tdee) || null; }
+// Best estimate of daily maintenance kcal. Uses the known TDEE; with none on
+// record, infers it from the plan budget plus the deficit implied by the goal.
+const KCAL_PER_KG = 7700;
+function dailyMaintenance() {
+  const tdee = getTDEE();
+  if (tdee) return tdee;
+  const wkBudget = hasPlan() ? PROGRAM.weekBudget : (settings.calMax || 2000) * 7;
+  let weeklyLossKg = 0;
+  if (hasPlan() && PROGRAM.startWeight && settings.goalWeight && PROGRAM.weeks)
+    weeklyLossKg = (PROGRAM.startWeight - settings.goalWeight) / PROGRAM.weeks;
+  let plannedDeficit = Math.round(Math.max(0, weeklyLossKg) * KCAL_PER_KG);
+  if (plannedDeficit <= 0) plannedDeficit = Math.round(0.5 * KCAL_PER_KG); // fallback ≈ 0.5 kg/wk cut
+  return Math.round((wkBudget + plannedDeficit) / 7);
+}
 function applyPlan() {
   if (PLAN) {
     DAYPLAN = PLAN.days;
@@ -1750,24 +1777,10 @@ function renderBudgetResult(consumed, wkBudget, nLogged) {
   if (!el) return;
   if (!consumed || !nLogged) { el.style.display = 'none'; return; }
 
-  const KCAL_PER_KG = 7700;
-  // Weekly maintenance = your TDEE × 7. The TDEE is the one Claude estimated for the
-  // plan (or the value you set in Settings). With no TDEE on record, fall back to
-  // inferring the deficit baked into the budget from the planned weight trajectory.
-  const tdee = getTDEE();
-  let maintenance;
-  if (tdee) {
-    maintenance = tdee * 7;
-  } else {
-    let weeklyLossKg = 0;
-    if (hasPlan() && PROGRAM.startWeight && settings.goalWeight && PROGRAM.weeks)
-      weeklyLossKg = (PROGRAM.startWeight - settings.goalWeight) / PROGRAM.weeks;
-    let plannedDeficit = Math.round(Math.max(0, weeklyLossKg) * KCAL_PER_KG);
-    if (plannedDeficit <= 0) plannedDeficit = Math.round(0.5 * KCAL_PER_KG); // fallback ≈ 0.5 kg/wk cut
-    maintenance = wkBudget + plannedDeficit;
-  }
+  // Weekly maintenance = your daily TDEE × 7 (Claude-estimated or set in Settings;
+  // inferred from the budget + goal deficit when no TDEE is on record).
   // Keep the bands ordered (budget ≤ maintenance) even on a surplus/bulk plan.
-  maintenance = Math.max(maintenance, wkBudget);
+  const maintenance = Math.max(dailyMaintenance() * 7, wkBudget);
 
   // Prorate plan + maintenance to the days actually logged so a partial week is judged fairly.
   const frac    = Math.min(nLogged, 7) / 7;
@@ -1908,8 +1921,81 @@ function renderProgress() {
   }
 
   renderWeightChart(entries);
+  renderCalForecast(entries);
   renderWeighinTable(entries);
   renderCompChart();
+}
+
+// Forecast weight from CALORIES: average daily energy balance (intake − maintenance)
+// projects a weekly rate of gain/loss and, anchored to the latest weigh-in, a
+// predicted weight at the program's end. Independent of the scale — it's what your
+// eating predicts, useful to sanity-check the trend and catch creeping weight gain.
+// Shared calorie→weight model: mean daily energy balance over logged days, and the
+// weight trajectory it predicts. Returned to both the forecast card and the chart so
+// the number and the drawn line always agree. null until ≥3 logged calorie days.
+function calForecastModel() {
+  const calDays = Object.keys(DB).filter(dk => isActiveDay(dk) && DB[dk]?.cal).sort();
+  if (calDays.length < 3) return null;
+  const maint  = dailyMaintenance();
+  const avgBal = calDays.reduce((a, dk) => a + (DB[dk].cal - maint), 0) / calDays.length;
+  const avgCal = Math.round(calDays.reduce((a, dk) => a + DB[dk].cal, 0) / calDays.length);
+  return {calDays, maint, avgBal, avgCal, ratePerWk: (avgBal * 7) / KCAL_PER_KG};
+}
+// Weight a calorie pace predicts at a given date, anchored on the latest weigh-in.
+function calPredictAt(latest, avgBal, dateMs) {
+  const anchorMs = new Date(latest.dk + 'T12:00:00').getTime();
+  return latest.weight + avgBal * ((dateMs - anchorMs) / 86400000) / KCAL_PER_KG;
+}
+
+function renderCalForecast(entries) {
+  const hdr = document.getElementById('cal-forecast-hdr');
+  const el  = document.getElementById('cal-forecast');
+  if (!el) return;
+  const hide = () => { el.style.display = 'none'; if (hdr) hdr.style.display = 'none'; };
+
+  const m = calForecastModel();
+  if (!m) { hide(); return; }   // need a few days to mean anything
+  const {maint, avgBal, avgCal, ratePerWk} = m;
+  const gaining = ratePerWk > 0.02, losing = ratePerWk < -0.02;
+  const zone = gaining ? 'gain' : losing ? 'loss' : 'maint';
+  const arrow = gaining ? '▲' : losing ? '▼' : '▬';
+
+  const fmt  = (s, o) => s.replace(/\{(\w+)\}/g, (_, k) => o[k]);
+  const headline = arrow + ' ' + Math.abs(ratePerWk).toFixed(2) + ' kg / ' + t('per_week');
+  const sub = fmt(t('cf_basis'), {n: m.calDays.length, avg: avgCal.toLocaleString(), maint: maint.toLocaleString()});
+
+  // Projection to program end, anchored on the most recent real weigh-in.
+  const latest = entries[entries.length - 1];
+  let projLine = '';
+  if (hasPlan() && latest) {
+    const end  = progEnd();
+    if (end.getTime() > new Date(latest.dk + 'T12:00:00').getTime()) {
+      const predEnd = calPredictAt(latest, avgBal, end.getTime());
+      const expEnd  = PROGRAM.expected[PROGRAM.weeks - 1];
+      const vs = predEnd - expEnd;
+      const vsTxt = (vs > 0 ? '+' : '') + vs.toFixed(1);
+      const vsCol = vs <= 0.1 ? 'var(--green)' : 'var(--amber)';
+      projLine = '<div class="bres-sub" style="margin-top:8px;">' +
+        fmt(t('cf_proj'), {date: fmtDate(end), kg: predEnd.toFixed(1)}) +
+        ' <span style="color:' + vsCol + ';">(' + vsTxt + ' ' + t('vs_expected') + ')</span></div>';
+    }
+  } else if (latest && settings.goalWeight && losing) {
+    const toGo = latest.weight - settings.goalWeight;
+    if (toGo > 0) {
+      const wks = toGo / Math.abs(ratePerWk);
+      const eta = new Date(); eta.setDate(eta.getDate() + Math.round(wks * 7));
+      projLine = '<div class="bres-sub" style="margin-top:8px;">' +
+        fmt(t('cf_eta'), {date: fmtDate(eta)}) + '</div>';
+    }
+  }
+
+  hdr.style.display = '';
+  el.style.display = '';
+  el.className = 'bres z-' + zone;
+  el.innerHTML =
+    '<div class="bres-top"><span class="bres-zone">' + t('cf_' + zone) + '</span>' +
+    '<span class="bres-amt">' + headline + '</span></div>' +
+    '<div class="bres-sub">' + sub + '</div>' + projLine;
 }
 
 function renderWeightChart(entries) {
@@ -1920,8 +2006,25 @@ function renderWeightChart(entries) {
   const expPts = hasPlan() ? [{x:0, w:PROGRAM.startWeight}] : [];
   if (hasPlan()) PROGRAM.expected.forEach((w, i) => expPts.push({x:i+1, w}));
   const maxX = hasPlan() ? PROGRAM.weeks : Math.max(entries.length - 1, 1);
+  const ms0 = w1Start().getTime();
+  const wkMs = 604800000;
+
+  // Calorie forecast: project the latest weigh-in to program end at the eating pace.
+  const fc = calForecastModel();
+  let fcSeg = null;
+  if (hasPlan() && fc && entries.length) {
+    const latest = entries[entries.length - 1];
+    const latestMs = new Date(latest.dk + 'T12:00:00').getTime();
+    const endMs = progEnd().getTime();
+    if (endMs > latestMs) {
+      const xL = Math.min(Math.max((latestMs - ms0) / wkMs, 0), maxX);
+      const xE = Math.min(Math.max((endMs   - ms0) / wkMs, 0), maxX);
+      fcSeg = {xL, wL: latest.weight, xE, wE: calPredictAt(latest, fc.avgBal, endMs)};
+    }
+  }
 
   const allW = expPts.map(p=>p.w).concat(entries.map(e=>e.weight),
+    fcSeg ? [fcSeg.wE] : [],
     settings.goalWeight && (entries.length || hasPlan()) ? [settings.goalWeight] : []);
   if (!allW.length) allW.push(75);   // arbitrary axis seed for the empty state
   const minV = Math.min(...allW) - 0.6;
@@ -1931,9 +2034,14 @@ function renderWeightChart(entries) {
 
   const expPath = expPts.map((p,i) => (i===0?'M ':'L ') + sx(p.x).toFixed(1) + ' ' + sy(p.w).toFixed(1)).join(' ');
 
+  // Forecast segment + predicted-end marker
+  const fcPath = fcSeg ? 'M ' + sx(fcSeg.xL).toFixed(1) + ' ' + sy(fcSeg.wL).toFixed(1) +
+    ' L ' + sx(fcSeg.xE).toFixed(1) + ' ' + sy(fcSeg.wE).toFixed(1) : '';
+  const fcDot = fcSeg ?
+    '<circle cx="' + sx(fcSeg.xE).toFixed(1) + '" cy="' + sy(fcSeg.wE).toFixed(1) + '" r="3.5" fill="var(--amber)"/>' +
+    '<text x="' + sx(fcSeg.xE).toFixed(1) + '" y="' + (sy(fcSeg.wE)-7).toFixed(1) + '" fill="var(--amber)" font-size="9" text-anchor="middle">' + fcSeg.wE.toFixed(1) + '</text>' : '';
+
   // Actual entries: by program-time fraction (plan) or evenly indexed (baseline)
-  const ms0 = w1Start().getTime();
-  const wkMs = 604800000;
   const aPts = entries.map((e, i) => {
     if (!hasPlan()) return {x: entries.length > 1 ? i : 0.5, w: e.weight, wn: e.wn};
     const d = new Date(e.dk + 'T12:00:00');
@@ -1956,8 +2064,9 @@ function renderWeightChart(entries) {
     '<defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="0">' +
     '<stop offset="0" stop-color="#00e5ff"/><stop offset="1" stop-color="#e879f9"/></linearGradient></defs>' +
     (expPts.length ? '<path d="' + expPath + '" fill="none" stroke="rgba(167,139,250,0.6)" stroke-width="1.5" stroke-dasharray="5,4"/>' : '') +
+    (fcPath ? '<path d="' + fcPath + '" fill="none" stroke="var(--amber)" stroke-width="1.8" stroke-dasharray="2,3" stroke-linecap="round"/>' : '') +
     (aPts.length ? '<path d="' + aPath + '" fill="none" stroke="url(#lg)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>' : '') +
-    dots + wkLabels + '</svg>' +
+    dots + fcDot + wkLabels + '</svg>' +
     (aPts.length ? '' : '<div class="chart-empty">' + illus('scale') + '<span>' + t('ins_weigh_in') + '</span></div>');
 }
 
