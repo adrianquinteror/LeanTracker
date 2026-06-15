@@ -166,6 +166,21 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
 .tbar-fill{height:100%;border-radius:4px;transition:width .4s cubic-bezier(.2,.8,.3,1);
   box-shadow:0 0 8px rgba(0,229,255,.5);}
 .tbar-lbl{display:flex;justify-content:space-between;font-size:10px;color:var(--text3);}
+.bres{margin-top:12px;padding:11px 12px;border-radius:12px;border:1px solid var(--border);
+  background:var(--bg3,rgba(0,0,0,0.18));}
+.bres-top{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.bres-zone{font-size:10.5px;font-family:var(--fd);font-weight:700;text-transform:uppercase;
+  letter-spacing:.08em;}
+.bres-amt{font-size:13px;font-weight:700;font-family:var(--fd);}
+.bres-sub{font-size:11px;color:var(--text2);margin-top:6px;line-height:1.5;}
+.bres-scale{display:flex;height:6px;border-radius:4px;overflow:hidden;margin-top:9px;background:rgba(0,0,0,0.3);}
+.bres-scale > span{height:100%;}
+.bres.z-loss{border-color:rgba(62,242,165,.3);background:rgba(62,242,165,.07);}
+.bres.z-loss .bres-zone{color:var(--green);}
+.bres.z-maint{border-color:rgba(255,200,87,.3);background:var(--amber-dim);}
+.bres.z-maint .bres-zone{color:var(--amber);}
+.bres.z-gain{border-color:rgba(255,84,112,.32);background:var(--red-dim);}
+.bres.z-gain .bres-zone{color:var(--red);}
 
 /* TARGETS */
 .tgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
@@ -447,6 +462,7 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
   <div class="card">
     <div class="tbar-bg" style="height:9px;"><div class="tbar-fill" id="budget-bar"></div></div>
     <div class="tbar-lbl"><span id="budget-used"></span><span id="budget-left"></span></div>
+    <div id="budget-result" class="bres" style="display:none;"></div>
   </div>
   <div class="shdr"><span class="shdr-t" data-k="habit_grid"></span></div>
   <div class="wgrid-wrap"><div class="wgrid" id="wgrid"></div></div>
@@ -690,6 +706,11 @@ en:{
   weekly_view:'Weekly view', compliance:'Compliance', avg_cal:'Avg kcal',
   habit_grid:'Habit grid', calories_week:'Calories', training_log:'Training log',
   week_budget:'Calorie budget', run_plan:'Running plan',
+  bud_zone_loss:'On plan', bud_zone_maint:'Maintenance', bud_zone_gain:'Weight gain',
+  bud_over_plan:'over plan', bud_under_plan:'under plan', bud_day:'day', bud_days:'days',
+  bud_loss_sub:'Within plan — on track to lose ≈ {kg} kg this week.',
+  bud_maint_sub:'Over plan, but the surplus only cancels your deficit — projected change ≈ 0 kg. {room} kcal of room before you start gaining.',
+  bud_gain_sub:'Past maintenance — projected ≈ {kg} kg of weight gain. Maintenance over {days} is ≈ {maint} kcal.',
   on_target:'On target', over:'Over', low:'Low',
   progress:'Progress', your_journey:'Your journey', log_body:'Log body',
   current_weight:'Current', goal_weight:'Goal', weight_trend:'Weight trend',
@@ -747,6 +768,11 @@ es:{
   weekly_view:'Vista semanal', compliance:'Cumplimiento', avg_cal:'Kcal prom',
   habit_grid:'Cuadrícula', calories_week:'Calorías', training_log:'Registro entreno',
   week_budget:'Presupuesto calórico', run_plan:'Plan de carrera',
+  bud_zone_loss:'En plan', bud_zone_maint:'Mantenimiento', bud_zone_gain:'Aumento de peso',
+  bud_over_plan:'sobre el plan', bud_under_plan:'bajo el plan', bud_day:'día', bud_days:'días',
+  bud_loss_sub:'Dentro del plan — en camino de perder ≈ {kg} kg esta semana.',
+  bud_maint_sub:'Sobre el plan, pero el exceso solo anula tu déficit — cambio proyectado ≈ 0 kg. {room} kcal de margen antes de empezar a ganar.',
+  bud_gain_sub:'Por encima del mantenimiento — aumento proyectado ≈ {kg} kg. El mantenimiento en {days} es ≈ {maint} kcal.',
   on_target:'En objetivo', over:'Excedido', low:'Bajo',
   progress:'Progreso', your_journey:'Tu progreso', log_body:'Registrar',
   current_weight:'Actual', goal_weight:'Meta', weight_trend:'Tendencia peso',
@@ -1610,6 +1636,8 @@ function renderWeek() {
   document.getElementById('budget-used').textContent = consumed.toLocaleString() + ' ' + t('used');
   document.getElementById('budget-left').textContent = Math.max(0, wkBudget - consumed).toLocaleString() + ' ' + t('left');
 
+  renderBudgetResult(consumed, wkBudget, cvals.length);
+
   // Habit grid (Sun → Sat)
   const cols = '78px repeat(7,1fr)';
   let html = '<div class="wg-row" style="grid-template-columns:' + cols + ';">' +
@@ -1701,6 +1729,68 @@ function toggleRun(dk, el) {
     const plan = PROGRAM && PROGRAM.runs[viewWn - 1];
     if (plan && getWeekKeys(viewWn).every((k, dow) => !plan[dow] || DB[k]?.runDone)) toast(t('runs_done'));
   }
+}
+
+// Weekly budget verdict — how far over the plan you went, and whether the
+// week still lands in maintenance (no scale change) or tips into weight gain.
+// Energy balance: ~7700 kcal ≈ 1 kg of body weight.
+function renderBudgetResult(consumed, wkBudget, nLogged) {
+  const el = document.getElementById('budget-result');
+  if (!el) return;
+  if (!consumed || !nLogged) { el.style.display = 'none'; return; }
+
+  const KCAL_PER_KG = 7700;
+  // Weekly deficit baked into the plan budget = how far it sits below maintenance.
+  let weeklyLossKg = 0;
+  if (hasPlan() && PROGRAM.startWeight && settings.goalWeight && PROGRAM.weeks)
+    weeklyLossKg = (PROGRAM.startWeight - settings.goalWeight) / PROGRAM.weeks;
+  let plannedDeficit = Math.round(Math.max(0, weeklyLossKg) * KCAL_PER_KG);
+  if (plannedDeficit <= 0) plannedDeficit = Math.round(0.5 * KCAL_PER_KG); // fallback ≈ 0.5 kg/wk cut
+  const maintenance = wkBudget + plannedDeficit;
+
+  // Prorate plan + maintenance to the days actually logged so a partial week is judged fairly.
+  const frac    = Math.min(nLogged, 7) / 7;
+  const budgetP = Math.round(wkBudget * frac);
+  const maintP  = Math.round(maintenance * frac);
+
+  const fmt  = (s, o) => s.replace(/\{(\w+)\}/g, (_, k) => o[k]);
+  const days = nLogged + ' ' + t(nLogged === 1 ? 'bud_day' : 'bud_days');
+
+  let zone, amtTxt, sub;
+  if (consumed <= budgetP) {
+    zone = 'loss';
+    amtTxt = (budgetP - consumed).toLocaleString() + ' ' + t('bud_under_plan');
+    sub = fmt(t('bud_loss_sub'), {kg: ((maintP - consumed) / KCAL_PER_KG).toFixed(2)});
+  } else if (consumed <= maintP) {
+    zone = 'maint';
+    amtTxt = '+' + (consumed - budgetP).toLocaleString() + ' ' + t('bud_over_plan');
+    sub = fmt(t('bud_maint_sub'), {room: (maintP - consumed).toLocaleString()});
+  } else {
+    zone = 'gain';
+    amtTxt = '+' + (consumed - budgetP).toLocaleString() + ' ' + t('bud_over_plan');
+    sub = fmt(t('bud_gain_sub'), {kg: ((consumed - maintP) / KCAL_PER_KG).toFixed(2), days, maint: maintP.toLocaleString()});
+  }
+
+  // Proportional fill showing how the week spreads across loss → maintenance → gain.
+  const scaleMax = Math.max(maintP * 1.18, consumed * 1.04, 1);
+  const pct = v => (Math.max(0, v) / scaleMax * 100) + '%';
+  const wLoss  = pct(Math.min(consumed, budgetP));
+  const wMaint = pct(Math.min(Math.max(consumed - budgetP, 0), maintP - budgetP));
+  const wGain  = pct(Math.max(consumed - maintP, 0));
+
+  el.className = 'bres z-' + zone;
+  el.style.display = '';
+  el.innerHTML =
+    '<div class="bres-top"><span class="bres-zone">' + t('bud_zone_' + zone) + '</span>' +
+    '<span class="bres-amt">' + amtTxt + '</span></div>' +
+    '<div class="bres-sub">' + sub + '</div>' +
+    '<div class="bres-scale">' +
+      '<span style="width:' + wLoss  + ';background:var(--green);"></span>' +
+      '<span style="width:' + wMaint + ';background:var(--amber);"></span>' +
+      '<span style="width:' + wGain  + ';background:var(--red);"></span>' +
+    '</div>' +
+    '<div class="tbar-lbl" style="margin-top:6px;"><span>' + t('bud_zone_loss') + ' ≤ ' + budgetP.toLocaleString() +
+      '</span><span>' + t('bud_zone_maint') + ' ≤ ' + maintP.toLocaleString() + '</span></div>';
 }
 
 // 7-axis spider chart: one axis per habit (calories has its own bar chart)
