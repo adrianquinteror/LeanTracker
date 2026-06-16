@@ -264,6 +264,23 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
   width:100%;font-family:var(--fd);font-size:13px;font-weight:700;text-transform:uppercase;
   letter-spacing:.06em;cursor:pointer;margin-top:4px;box-shadow:0 0 16px rgba(0,229,255,.25);}
 
+/* BELT / WAIST SLIDER — color fades red→amber→green toward target */
+.belt-readout{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:9px;}
+.belt-now{font-family:var(--fd);font-weight:900;font-size:32px;line-height:1;transition:color .2s;}
+.belt-now small{font-size:13px;font-weight:600;color:var(--text2);margin-left:5px;}
+.belt-target{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.1em;font-family:var(--fd);font-weight:700;}
+.belt-slider{-webkit-appearance:none;appearance:none;width:100%;height:12px;border-radius:8px;outline:none;
+  background:linear-gradient(90deg,#ff5470 0%,#ffc857 50%,#3ef2a5 100%);
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.45);cursor:pointer;}
+.belt-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:24px;height:24px;border-radius:50%;
+  background:#fff;border:3px solid var(--bg);box-shadow:0 0 0 2px rgba(255,255,255,.6),0 2px 8px rgba(0,0,0,.5);cursor:pointer;transition:transform .1s;}
+.belt-slider::-webkit-slider-thumb:active{transform:scale(1.15);}
+.belt-slider::-moz-range-thumb{width:24px;height:24px;border-radius:50%;background:#fff;border:3px solid var(--bg);
+  box-shadow:0 0 0 2px rgba(255,255,255,.6),0 2px 8px rgba(0,0,0,.5);cursor:pointer;}
+.belt-scale{position:relative;height:16px;margin-top:4px;font-family:var(--fd);font-weight:700;font-size:9px;color:var(--text3);}
+.belt-scale span{position:absolute;transform:translateX(-50%);}
+.belt-scale .tgt{color:var(--green);}
+
 /* WEIGHT CHART */
 .wchart{position:relative;height:130px;margin:7px 0;}
 .wchart svg{width:100%;height:100%;}
@@ -498,6 +515,8 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
     <div class="stat-card"><div class="stat-lbl" data-k="current_weight"></div><div class="stat-val" id="prog-cw">—</div><div class="stat-sub" id="prog-diff"></div></div>
     <div class="stat-card"><div class="stat-lbl" data-k="goal_weight"></div><div class="stat-val" id="prog-goal">—</div><div class="stat-sub" id="prog-rem"></div></div>
   </div>
+  <div class="shdr"><span class="shdr-t" data-k="waist_belt"></span></div>
+  <div class="card glow" id="belt-card"></div>
   <div class="shdr"><span class="shdr-t" data-k="weight_trend"></span></div>
   <div class="card glow"><div class="wchart" id="wchart"></div>
     <div style="display:flex;gap:14px;margin-top:4px;">
@@ -697,6 +716,14 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
     <input class="inp" id="bm-w" type="number" step="0.1">
     <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;" data-k="waist_cm"></label>
     <input class="inp" id="bm-wa" type="number" step="0.5">
+    <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;" data-k="belt_level"></label>
+    <div class="belt-readout">
+      <div class="belt-now" id="bm-belt-val">3.8</div>
+      <div class="belt-target"><span data-k="belt_target"></span> <span id="bm-belt-tgt" style="color:var(--green);">5.3</span></div>
+    </div>
+    <input class="belt-slider" id="bm-belt" type="range" min="1" max="7" step="0.1" value="3.8" oninput="onBeltInput()">
+    <div class="belt-scale" id="bm-belt-scale"></div>
+    <div style="font-size:10.5px;color:var(--text3);margin:6px 0 2px;" data-k="belt_hint"></div>
     <button class="mbtn" onclick="saveBodyEntry()"><span data-k="save_entry"></span></button>
   </div>
 </div>
@@ -745,6 +772,9 @@ en:{
   powered_by:'Powered by Claude',
   t_cal:'kcal target', t_prot:'protein', t_run:'run today', t_goal:'goal weight', t_alc:'alcohol', t_budget:'wk budget',
   log_body_data:'Log body data', weight_kg:'Weight (kg)', waist_cm:'Waist (cm)', save_entry:'Save',
+  belt_level:'Belt level', belt_hint:'Notch you fasten to — higher = slimmer waist',
+  waist_belt:'Waist · Belt level', belt_target:'target', belt_to_target:'notches to target',
+  belt_at_target:'At target waist!', belt_none:'Slide to log your belt notch.', belt_approx_goal:'≈ target weight',
   hnames:['Alcohol','Sweets','Water','Calories','Macros','Training','Sleep','Phone'],
   dshort:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
   no_data:'No data yet', no_run:'No runs planned this week', rest_day:'Rest day — no lifts',
@@ -814,6 +844,9 @@ es:{
   powered_by:'Con tecnología Claude',
   t_cal:'kcal objetivo', t_prot:'proteína', t_run:'carrera hoy', t_goal:'peso meta', t_alc:'alcohol', t_budget:'presup sem',
   log_body_data:'Registro corporal', weight_kg:'Peso (kg)', waist_cm:'Cintura (cm)', save_entry:'Guardar',
+  belt_level:'Nivel de cinturón', belt_hint:'Agujero que abrochas — mayor = cintura más delgada',
+  waist_belt:'Cintura · Nivel de cinturón', belt_target:'meta', belt_to_target:'agujeros a la meta',
+  belt_at_target:'¡Cintura en la meta!', belt_none:'Desliza para registrar tu agujero.', belt_approx_goal:'≈ peso meta',
   hnames:['Alcohol','Dulce','Agua','Calorías','Macros','Entrenamiento','Sueño','Móvil'],
   dshort:['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'],
   no_data:'Sin datos', no_run:'Sin carreras esta semana', rest_day:'Día de descanso — sin pesas',
@@ -1132,7 +1165,7 @@ let lang = localStorage.getItem('lt_lang') || 'en';
 function persist() { localStorage.setItem('lt_db', JSON.stringify(DB)); }
 
 function getDay(dk) {
-  if (!DB[dk]) DB[dk] = {habits:{},cal:null,training:'',weight:null,waist:null,meals:{},lifts:{}};
+  if (!DB[dk]) DB[dk] = {habits:{},cal:null,training:'',weight:null,waist:null,belt:null,meals:{},lifts:{}};
   const d = DB[dk];
   if (!d.meals) d.meals = {};
   if (!d.lifts) d.lifts = {};
@@ -1884,6 +1917,69 @@ function weightEntries() {
     .sort((a,b) => a.dk.localeCompare(b.dk));
 }
 
+// ─────────────────────────────────────────────────────────────────
+// WAIST · BELT LEVEL
+// Waist is tracked by belt notch: a higher number means you fasten a
+// tighter hole — a slimmer waist. Target 5.3 ≈ goal weight. The slider
+// fades red → amber → green across the range so colour reflects progress.
+// ─────────────────────────────────────────────────────────────────
+const BELT_MIN = 1, BELT_MAX = 7;
+function beltTgt() { return settings.beltTarget ?? 5.3; }
+function beltEntries() {
+  return Object.entries(DB).filter(([,d]) => d.belt)
+    .map(([dk,d]) => ({dk, belt: d.belt})).sort((a,b) => a.dk.localeCompare(b.dk));
+}
+function latestBelt() { const e = beltEntries(); return e.length ? e[e.length-1].belt : null; }
+// Colour along the same red→amber→green gradient the slider track paints,
+// so the readout number matches where the thumb sits.
+function beltColor(v) {
+  const p = Math.max(0, Math.min(1, (v - BELT_MIN) / (BELT_MAX - BELT_MIN)));
+  const stops = [[255,84,112],[255,200,87],[62,242,165]]; // red, amber, green
+  const seg = p <= 0.5 ? 0 : 1, lp = p <= 0.5 ? p / 0.5 : (p - 0.5) / 0.5;
+  const a = stops[seg], b = stops[seg+1];
+  const c = a.map((x,i) => Math.round(x + (b[i] - x) * lp));
+  return 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')';
+}
+function beltPct(v) { return (Math.max(BELT_MIN, Math.min(BELT_MAX, v)) - BELT_MIN) / (BELT_MAX - BELT_MIN) * 100; }
+function beltScaleHtml() {
+  let h = '';
+  for (let i = BELT_MIN; i <= BELT_MAX; i++) h += '<span style="left:' + beltPct(i) + '%;">' + i + '</span>';
+  h += '<span class="tgt" style="left:' + beltPct(beltTgt()) + '%;">▲</span>';
+  return h;
+}
+function onBeltInput() {
+  const v = parseFloat(document.getElementById('bm-belt').value);
+  const el = document.getElementById('bm-belt-val');
+  el.textContent = v.toFixed(1);
+  el.style.color = beltColor(v);
+}
+function initBodyModal() {
+  const cur = latestBelt() ?? 3.8;
+  document.getElementById('bm-belt').value = cur;
+  document.getElementById('bm-belt-tgt').textContent = beltTgt().toFixed(1);
+  document.getElementById('bm-belt-scale').innerHTML = beltScaleHtml();
+  onBeltInput();
+}
+function renderBeltCard() {
+  const el = document.getElementById('belt-card');
+  if (!el) return;
+  const cur = latestBelt(), tgt = beltTgt();
+  if (cur == null) { el.innerHTML = '<div style="color:var(--text3);font-size:13px;">' + t('belt_none') + '</div>'; return; }
+  const col = beltColor(cur), rem = tgt - cur;
+  const sub = rem <= 0.05 ? t('belt_at_target') : rem.toFixed(1) + ' ' + t('belt_to_target');
+  el.innerHTML =
+    '<div class="belt-readout">' +
+      '<div class="belt-now" style="color:' + col + ';">' + cur.toFixed(1) +
+        '<small>' + sub + '</small></div>' +
+      '<div style="text-align:right;"><div class="belt-target"><span>' + t('belt_target') +
+        '</span> <span style="color:var(--green);">' + tgt.toFixed(1) + '</span></div>' +
+        '<div style="font-size:9px;color:var(--text3);margin-top:2px;">' + t('belt_approx_goal') + '</div></div>' +
+    '</div>' +
+    '<input class="belt-slider" type="range" min="' + BELT_MIN + '" max="' + BELT_MAX +
+      '" step="0.1" value="' + cur + '" disabled style="opacity:1;">' +
+    '<div class="belt-scale">' + beltScaleHtml() + '</div>';
+}
+
 function renderProgress() {
   const entries = weightEntries();
   const latest = entries[entries.length - 1];
@@ -1920,6 +2016,7 @@ function renderProgress() {
     document.getElementById('prog-rem').textContent = '';
   }
 
+  renderBeltCard();
   renderWeightChart(entries);
   renderCalForecast(entries);
   renderWeighinTable(entries);
@@ -2124,7 +2221,7 @@ function renderCompChart() {
   document.getElementById('comp-chart').innerHTML = html;
 }
 
-function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function openModal(id)  { if (id === 'body-modal') initBodyModal(); document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
 // ─────────────────────────────────────────────────────────────────
@@ -2186,9 +2283,11 @@ function renderCal() {
 function saveBodyEntry() {
   const w  = parseFloat(document.getElementById('bm-w').value);
   const wa = parseFloat(document.getElementById('bm-wa').value);
+  const belt = parseFloat(document.getElementById('bm-belt').value);
   const day = getDay(todayKey());
   if (w)  day.weight = w;
   if (wa) day.waist  = wa;
+  if (belt) day.belt = belt;
   persist();
   document.getElementById('bm-w').value  = '';
   document.getElementById('bm-wa').value = '';
@@ -2770,6 +2869,9 @@ function importData(input) {
 // ─────────────────────────────────────────────────────────────────
 loadPlan();               // hydrate the stored plan (auto-migrates existing installs)
 seedHistory();            // no-op if DB already exists in localStorage
+// Belt-level waist tracking: target notch 5.3 ≈ goal weight; current 3.8.
+if (settings.beltTarget == null) { settings.beltTarget = 5.3; localStorage.setItem('lt_settings', JSON.stringify(settings)); }
+if (latestBelt() == null) { getDay(todayKey()).belt = 3.8; persist(); }
 viewWn = Math.max(todayWn(), 1);  // week view starts on current program week
 applyI18n();
 renderToday();
