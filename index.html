@@ -517,13 +517,19 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
   </div>
   <div class="shdr"><span class="shdr-t" data-k="waist_belt"></span></div>
   <div class="card glow" id="belt-card"></div>
+  <div class="card glow"><div class="wchart" id="bchart"></div>
+    <div style="display:flex;gap:14px;margin-top:4px;">
+      <span style="font-size:10.5px;color:var(--text2);"><span style="display:inline-block;width:14px;height:2px;background:var(--green);margin-right:4px;vertical-align:middle;"></span><span data-k="belt_legend"></span></span>
+      <span style="font-size:10.5px;color:var(--text2);"><span style="display:inline-block;width:14px;height:0;border-top:2px dotted var(--green);margin-right:4px;vertical-align:middle;"></span><span data-k="belt_proj_legend"></span></span>
+      <span style="font-size:10.5px;color:var(--text2);"><span style="display:inline-block;width:14px;height:0;border-top:2px dashed var(--violet);margin-right:4px;vertical-align:middle;"></span><span data-k="belt_target"></span></span>
+    </div>
+  </div>
   <div class="shdr"><span class="shdr-t" data-k="weight_trend"></span></div>
   <div class="card glow"><div class="wchart" id="wchart"></div>
     <div style="display:flex;gap:14px;margin-top:4px;">
       <span style="font-size:10.5px;color:var(--text2);"><span style="display:inline-block;width:14px;height:2px;background:var(--accent);margin-right:4px;vertical-align:middle;"></span><span data-k="actual"></span></span>
       <span style="font-size:10.5px;color:var(--text2);"><span style="display:inline-block;width:14px;height:0;border-top:2px dashed var(--violet);margin-right:4px;vertical-align:middle;"></span><span data-k="expected"></span></span>
       <span style="font-size:10.5px;color:var(--text2);"><span style="display:inline-block;width:14px;height:0;border-top:2px dotted var(--amber);margin-right:4px;vertical-align:middle;"></span><span data-k="cf_forecast_legend"></span></span>
-      <span style="font-size:10.5px;color:var(--text2);"><span style="display:inline-block;width:14px;height:2px;background:var(--green);margin-right:4px;vertical-align:middle;"></span><span data-k="belt_legend"></span></span>
     </div>
   </div>
   <div class="shdr" id="cal-forecast-hdr" style="display:none;"><span class="shdr-t" data-k="cal_forecast"></span></div>
@@ -774,7 +780,7 @@ en:{
   t_cal:'kcal target', t_prot:'protein', t_run:'run today', t_goal:'goal weight', t_alc:'alcohol', t_budget:'wk budget',
   log_body_data:'Log body data', weight_kg:'Weight (kg)', waist_cm:'Waist (cm)', save_entry:'Save',
   belt_level:'Belt level', belt_hint:'Notch you fasten to — higher = slimmer waist',
-  waist_belt:'Waist · Belt level', belt_target:'target', belt_to_target:'notches to target', belt_legend:'Belt',
+  waist_belt:'Waist · Belt level', belt_target:'target', belt_to_target:'notches to target', belt_legend:'Belt', belt_proj_legend:'Projection',
   belt_at_target:'At target waist!', belt_none:'Slide to log your belt notch.', belt_approx_goal:'≈ target weight',
   hnames:['Alcohol','Sweets','Water','Calories','Macros','Training','Sleep','Phone'],
   dshort:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
@@ -846,7 +852,7 @@ es:{
   t_cal:'kcal objetivo', t_prot:'proteína', t_run:'carrera hoy', t_goal:'peso meta', t_alc:'alcohol', t_budget:'presup sem',
   log_body_data:'Registro corporal', weight_kg:'Peso (kg)', waist_cm:'Cintura (cm)', save_entry:'Guardar',
   belt_level:'Nivel de cinturón', belt_hint:'Agujero que abrochas — mayor = cintura más delgada',
-  waist_belt:'Cintura · Nivel de cinturón', belt_target:'meta', belt_to_target:'agujeros a la meta', belt_legend:'Cinturón',
+  waist_belt:'Cintura · Nivel de cinturón', belt_target:'meta', belt_to_target:'agujeros a la meta', belt_legend:'Cinturón', belt_proj_legend:'Proyección',
   belt_at_target:'¡Cintura en la meta!', belt_none:'Desliza para registrar tu agujero.', belt_approx_goal:'≈ peso meta',
   hnames:['Alcohol','Dulce','Agua','Calorías','Macros','Entrenamiento','Sueño','Móvil'],
   dshort:['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'],
@@ -2002,6 +2008,85 @@ function renderBeltCard() {
     '<div class="belt-scale">' + beltScaleHtml() + '</div>';
 }
 
+// Dedicated belt-notch chart: the logged notches over time on their own 1–7
+// axis, a flat target line, and a dashed trend projection to program end —
+// the belt counterpart of the weight trend chart + calorie forecast.
+function renderBeltChart() {
+  const el = document.getElementById('bchart');
+  if (!el) return;
+  const W=320, H=120, px=26, py=16;
+  const bEntries = beltEntries();
+  if (!bEntries.length) {
+    el.innerHTML = '<div class="chart-empty">' + illus('scale') + '<span>' + t('belt_none') + '</span></div>';
+    return;
+  }
+  const tgt = beltTgt();
+  const maxX = hasPlan() ? PROGRAM.weeks : Math.max(bEntries.length - 1, 1);
+  const ms0 = w1Start().getTime();
+  const wkMs = 604800000;
+
+  // Trend projection to program end, anchored on the latest notch.
+  const bModel = beltForecastModel();
+  let bSeg = null;
+  if (hasPlan() && bModel) {
+    const lb = bModel.latest;
+    const lbMs = new Date(lb.dk + 'T12:00:00').getTime();
+    const endMs = progEnd().getTime();
+    if (endMs > lbMs) {
+      const xL = Math.min(Math.max((lbMs  - ms0) / wkMs, 0), maxX);
+      const xE = Math.min(Math.max((endMs - ms0) / wkMs, 0), maxX);
+      bSeg = {xL, vL: lb.belt, xE, vE: beltPredictAt(lb, bModel.slope, endMs)};
+    }
+  }
+
+  // y-axis spans the logged notches, the target and any projected notch, padded
+  // and clamped to the 1–7 belt range.
+  const allV = bEntries.map(e => e.belt).concat(bSeg ? [bSeg.vE] : [], [tgt]);
+  const minV = Math.max(BELT_MIN, Math.min(...allV) - 0.4);
+  const maxV = Math.min(BELT_MAX, Math.max(...allV) + 0.4);
+  const sx = x => px + (x / maxX) * (W - px*2);
+  const sy = v => H - py - ((v - minV) / (maxV - minV || 1)) * (H - py*2);
+
+  // Actual notches: by program-time fraction (plan) or evenly indexed (baseline).
+  const aPts = bEntries.map((e, i) => {
+    if (!hasPlan()) return {x: bEntries.length > 1 ? i : 0.5, v: e.belt};
+    const d = new Date(e.dk + 'T12:00:00');
+    return {x: Math.min(Math.max((d.getTime() - ms0) / wkMs, 0), maxX), v: e.belt};
+  });
+  const aPath = aPts.map((p,i) => (i===0?'M ':'L ') + sx(p.x).toFixed(1) + ' ' + sy(p.v).toFixed(1)).join(' ');
+  // Dots and labels keep the red→amber→green belt colour so the chart speaks the
+  // same colour language as the slider and readout above it.
+  const dots = aPts.map(p =>
+    '<circle cx="' + sx(p.x).toFixed(1) + '" cy="' + sy(p.v).toFixed(1) + '" r="4" fill="' + beltColor(p.v) + '"/>' +
+    '<text x="' + sx(p.x).toFixed(1) + '" y="' + (sy(p.v)-8).toFixed(1) + '" fill="' + beltColor(p.v) + '" font-size="9" text-anchor="middle">' + p.v.toFixed(1) + '</text>'
+  ).join('');
+
+  // Projection segment + predicted-end marker.
+  const fcPath = bSeg ? 'M ' + sx(bSeg.xL).toFixed(1) + ' ' + sy(bSeg.vL).toFixed(1) +
+    ' L ' + sx(bSeg.xE).toFixed(1) + ' ' + sy(bSeg.vE).toFixed(1) : '';
+  const fcDot = bSeg ?
+    '<circle cx="' + sx(bSeg.xE).toFixed(1) + '" cy="' + sy(bSeg.vE).toFixed(1) + '" r="3.5" fill="var(--green)"/>' +
+    '<text x="' + sx(bSeg.xE).toFixed(1) + '" y="' + (sy(bSeg.vE)-7).toFixed(1) + '" fill="var(--green)" font-size="9" text-anchor="middle">' + bSeg.vE.toFixed(1) + '</text>' : '';
+
+  // Flat target line, drawn only when the target sits inside the visible range.
+  const tgtLine = (tgt >= minV && tgt <= maxV) ?
+    '<line x1="' + sx(0).toFixed(1) + '" y1="' + sy(tgt).toFixed(1) + '" x2="' + sx(maxX).toFixed(1) + '" y2="' + sy(tgt).toFixed(1) +
+    '" stroke="rgba(167,139,250,0.6)" stroke-width="1.5" stroke-dasharray="5,4"/>' +
+    '<text x="' + (sx(maxX)-1).toFixed(1) + '" y="' + (sy(tgt)-3).toFixed(1) + '" fill="var(--violet)" font-size="8.5" text-anchor="end">' + tgt.toFixed(1) + '</text>' : '';
+
+  const wkLabels = hasPlan() ? Array.from({length:maxX+1},(_,i) =>
+    '<text x="' + sx(i).toFixed(1) + '" y="' + (H-2) + '" fill="#465070" font-size="8.5" text-anchor="middle">' + (i===0 ? t('start') : 'W'+i) + '</text>'
+  ).join('') : aPts.map((p, i) =>
+    '<text x="' + sx(p.x).toFixed(1) + '" y="' + (H-2) + '" fill="#465070" font-size="8" text-anchor="middle">' + bEntries[i].dk.slice(5) + '</text>'
+  ).join('');
+
+  el.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg">' +
+    tgtLine +
+    (fcPath ? '<path d="' + fcPath + '" fill="none" stroke="var(--green)" stroke-width="1.8" stroke-dasharray="2,3" stroke-linecap="round"/>' : '') +
+    '<path d="' + aPath + '" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>' +
+    dots + fcDot + wkLabels + '</svg>';
+}
+
 function renderProgress() {
   const entries = weightEntries();
   const latest = entries[entries.length - 1];
@@ -2039,6 +2124,7 @@ function renderProgress() {
   }
 
   renderBeltCard();
+  renderBeltChart();
   renderWeightChart(entries);
   renderCalForecast(entries);
   renderWeighinTable(entries);
@@ -2173,61 +2259,6 @@ function renderWeightChart(entries) {
     '<text x="' + sx(p.x).toFixed(1) + '" y="' + (sy(p.w)-8).toFixed(1) + '" fill="#aeb8d8" font-size="9" text-anchor="middle">' + p.w + '</text>'
   ).join('');
 
-  // ── Belt level overlay ──────────────────────────────────────────
-  // Belt notches (1–7) ride their own y-axis inside the same plot box, so a
-  // ~70 kg weight and a notch of 5 can share the chart; rising notches mean a
-  // slimmer waist. A dashed segment carries the latest notch to program end at
-  // the observed trend, mirroring the weight forecast.
-  const bEntries = beltEntries();
-  let beltSvg = '';
-  if (bEntries.length) {
-    const bModel = beltForecastModel();
-    let bSeg = null;
-    if (hasPlan() && bModel) {
-      const lb = bModel.latest;
-      const lbMs = new Date(lb.dk + 'T12:00:00').getTime();
-      const endMs = progEnd().getTime();
-      if (endMs > lbMs) {
-        const xL = Math.min(Math.max((lbMs  - ms0) / wkMs, 0), maxX);
-        const xE = Math.min(Math.max((endMs - ms0) / wkMs, 0), maxX);
-        bSeg = {xL, vL: lb.belt, xE, vE: beltPredictAt(lb, bModel.slope, endMs)};
-      }
-    }
-    // Independent belt scale, padded and including the target + projected notch.
-    const allB = bEntries.map(e => e.belt).concat(bSeg ? [bSeg.vE] : [], [beltTgt()]);
-    const bMin = Math.min(...allB) - 0.4, bMax = Math.max(...allB) + 0.4;
-    const syB = v => H - py - ((v - bMin) / (bMax - bMin)) * (H - py*2);
-    // Reuse weight's x-mapping so a notch lines up with the weigh-in logged the
-    // same day; fall back to date interpolation only when no weigh-in matches.
-    const wIndex = {}; entries.forEach((e,i) => { wIndex[e.dk] = i; });
-    const bx = dk => {
-      if (hasPlan()) return Math.min(Math.max((new Date(dk+'T12:00:00').getTime() - ms0) / wkMs, 0), maxX);
-      if (dk in wIndex) return wIndex[dk];
-      if (entries.length < 2) return 0.5;
-      const tt = new Date(dk+'T12:00:00').getTime();
-      const f = new Date(entries[0].dk+'T12:00:00').getTime();
-      const l = new Date(entries[entries.length-1].dk+'T12:00:00').getTime();
-      return l > f ? Math.min(Math.max((tt-f)/(l-f)*(entries.length-1), 0), entries.length-1) : 0;
-    };
-    const bPts = bEntries.map(e => ({x: bx(e.dk), v: e.belt}));
-    const bPath = bPts.map((p,i) => (i===0?'M ':'L ') + sx(p.x).toFixed(1) + ' ' + syB(p.v).toFixed(1)).join(' ');
-    const bProjPath = bSeg ? 'M ' + sx(bSeg.xL).toFixed(1) + ' ' + syB(bSeg.vL).toFixed(1) +
-      ' L ' + sx(bSeg.xE).toFixed(1) + ' ' + syB(bSeg.vE).toFixed(1) : '';
-    // Notch dots keep the red→amber→green belt colour; labels sit below the line
-    // so they never collide with the weight labels sitting above their points.
-    const bDots = bPts.map(p =>
-      '<circle cx="' + sx(p.x).toFixed(1) + '" cy="' + syB(p.v).toFixed(1) + '" r="3.5" fill="' + beltColor(p.v) + '"/>' +
-      '<text x="' + sx(p.x).toFixed(1) + '" y="' + (syB(p.v)+13).toFixed(1) + '" fill="' + beltColor(p.v) + '" font-size="9" text-anchor="middle">' + p.v.toFixed(1) + '</text>'
-    ).join('');
-    const bProjDot = bSeg ?
-      '<circle cx="' + sx(bSeg.xE).toFixed(1) + '" cy="' + syB(bSeg.vE).toFixed(1) + '" r="3.5" fill="var(--green)"/>' +
-      '<text x="' + sx(bSeg.xE).toFixed(1) + '" y="' + (syB(bSeg.vE)+13).toFixed(1) + '" fill="var(--green)" font-size="9" text-anchor="middle">' + bSeg.vE.toFixed(1) + '</text>' : '';
-    beltSvg =
-      (bProjPath ? '<path d="' + bProjPath + '" fill="none" stroke="var(--green)" stroke-width="1.8" stroke-dasharray="2,3" stroke-linecap="round"/>' : '') +
-      '<path d="' + bPath + '" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
-      bDots + bProjDot;
-  }
-
   const wkLabels = hasPlan() ? Array.from({length:maxX+1},(_,i) =>
     '<text x="' + sx(i).toFixed(1) + '" y="' + (H-2) + '" fill="#465070" font-size="8.5" text-anchor="middle">' + (i===0 ? t('start') : 'W'+i) + '</text>'
   ).join('') : aPts.map((p, i) =>
@@ -2239,7 +2270,6 @@ function renderWeightChart(entries) {
     '<stop offset="0" stop-color="#00e5ff"/><stop offset="1" stop-color="#e879f9"/></linearGradient></defs>' +
     (expPts.length ? '<path d="' + expPath + '" fill="none" stroke="rgba(167,139,250,0.6)" stroke-width="1.5" stroke-dasharray="5,4"/>' : '') +
     (fcPath ? '<path d="' + fcPath + '" fill="none" stroke="var(--amber)" stroke-width="1.8" stroke-dasharray="2,3" stroke-linecap="round"/>' : '') +
-    beltSvg +
     (aPts.length ? '<path d="' + aPath + '" fill="none" stroke="url(#lg)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>' : '') +
     dots + fcDot + wkLabels + '</svg>' +
     (aPts.length ? '' : '<div class="chart-empty">' + illus('scale') + '<span>' + t('ins_weigh_in') + '</span></div>');
