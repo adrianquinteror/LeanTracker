@@ -523,6 +523,7 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
       <span style="font-size:10.5px;color:var(--text2);"><span style="display:inline-block;width:14px;height:2px;background:var(--accent);margin-right:4px;vertical-align:middle;"></span><span data-k="actual"></span></span>
       <span style="font-size:10.5px;color:var(--text2);"><span style="display:inline-block;width:14px;height:0;border-top:2px dashed var(--violet);margin-right:4px;vertical-align:middle;"></span><span data-k="expected"></span></span>
       <span style="font-size:10.5px;color:var(--text2);"><span style="display:inline-block;width:14px;height:0;border-top:2px dotted var(--amber);margin-right:4px;vertical-align:middle;"></span><span data-k="cf_forecast_legend"></span></span>
+      <span style="font-size:10.5px;color:var(--text2);"><span style="display:inline-block;width:14px;height:2px;background:var(--green);margin-right:4px;vertical-align:middle;"></span><span data-k="belt_legend"></span></span>
     </div>
   </div>
   <div class="shdr" id="cal-forecast-hdr" style="display:none;"><span class="shdr-t" data-k="cal_forecast"></span></div>
@@ -773,7 +774,7 @@ en:{
   t_cal:'kcal target', t_prot:'protein', t_run:'run today', t_goal:'goal weight', t_alc:'alcohol', t_budget:'wk budget',
   log_body_data:'Log body data', weight_kg:'Weight (kg)', waist_cm:'Waist (cm)', save_entry:'Save',
   belt_level:'Belt level', belt_hint:'Notch you fasten to — higher = slimmer waist',
-  waist_belt:'Waist · Belt level', belt_target:'target', belt_to_target:'notches to target',
+  waist_belt:'Waist · Belt level', belt_target:'target', belt_to_target:'notches to target', belt_legend:'Belt',
   belt_at_target:'At target waist!', belt_none:'Slide to log your belt notch.', belt_approx_goal:'≈ target weight',
   hnames:['Alcohol','Sweets','Water','Calories','Macros','Training','Sleep','Phone'],
   dshort:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
@@ -845,7 +846,7 @@ es:{
   t_cal:'kcal objetivo', t_prot:'proteína', t_run:'carrera hoy', t_goal:'peso meta', t_alc:'alcohol', t_budget:'presup sem',
   log_body_data:'Registro corporal', weight_kg:'Peso (kg)', waist_cm:'Cintura (cm)', save_entry:'Guardar',
   belt_level:'Nivel de cinturón', belt_hint:'Agujero que abrochas — mayor = cintura más delgada',
-  waist_belt:'Cintura · Nivel de cinturón', belt_target:'meta', belt_to_target:'agujeros a la meta',
+  waist_belt:'Cintura · Nivel de cinturón', belt_target:'meta', belt_to_target:'agujeros a la meta', belt_legend:'Cinturón',
   belt_at_target:'¡Cintura en la meta!', belt_none:'Desliza para registrar tu agujero.', belt_approx_goal:'≈ peso meta',
   hnames:['Alcohol','Dulce','Agua','Calorías','Macros','Entrenamiento','Sueño','Móvil'],
   dshort:['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'],
@@ -1930,6 +1931,27 @@ function beltEntries() {
     .map(([dk,d]) => ({dk, belt: d.belt})).sort((a,b) => a.dk.localeCompare(b.dk));
 }
 function latestBelt() { const e = beltEntries(); return e.length ? e[e.length-1].belt : null; }
+// Belt trend: least-squares slope (notches per day) over logged belt entries.
+// Mirrors the calorie weight forecast so the chart can carry the latest notch
+// forward to program end. null until ≥2 entries give a line to fit.
+function beltForecastModel() {
+  const e = beltEntries();
+  if (e.length < 2) return null;
+  const t0 = new Date(e[0].dk + 'T12:00:00').getTime();
+  const xs = e.map(p => (new Date(p.dk + 'T12:00:00').getTime() - t0) / 86400000);
+  const ys = e.map(p => p.belt);
+  const n = e.length;
+  const mx = xs.reduce((a,b) => a+b, 0) / n, my = ys.reduce((a,b) => a+b, 0) / n;
+  let num = 0, den = 0;
+  for (let i = 0; i < n; i++) { num += (xs[i]-mx)*(ys[i]-my); den += (xs[i]-mx)**2; }
+  const slope = den ? num/den : 0;      // notches per day
+  return {slope, ratePerWk: slope*7, latest: e[e.length-1]};
+}
+// Belt notch a trend predicts at a given date, anchored on the latest entry.
+function beltPredictAt(latest, slope, dateMs) {
+  const anchorMs = new Date(latest.dk + 'T12:00:00').getTime();
+  return latest.belt + slope * ((dateMs - anchorMs) / 86400000);
+}
 // Colour along the same red→amber→green gradient the slider track paints,
 // so the readout number matches where the thumb sits.
 function beltColor(v) {
@@ -2151,6 +2173,61 @@ function renderWeightChart(entries) {
     '<text x="' + sx(p.x).toFixed(1) + '" y="' + (sy(p.w)-8).toFixed(1) + '" fill="#aeb8d8" font-size="9" text-anchor="middle">' + p.w + '</text>'
   ).join('');
 
+  // ── Belt level overlay ──────────────────────────────────────────
+  // Belt notches (1–7) ride their own y-axis inside the same plot box, so a
+  // ~70 kg weight and a notch of 5 can share the chart; rising notches mean a
+  // slimmer waist. A dashed segment carries the latest notch to program end at
+  // the observed trend, mirroring the weight forecast.
+  const bEntries = beltEntries();
+  let beltSvg = '';
+  if (bEntries.length) {
+    const bModel = beltForecastModel();
+    let bSeg = null;
+    if (hasPlan() && bModel) {
+      const lb = bModel.latest;
+      const lbMs = new Date(lb.dk + 'T12:00:00').getTime();
+      const endMs = progEnd().getTime();
+      if (endMs > lbMs) {
+        const xL = Math.min(Math.max((lbMs  - ms0) / wkMs, 0), maxX);
+        const xE = Math.min(Math.max((endMs - ms0) / wkMs, 0), maxX);
+        bSeg = {xL, vL: lb.belt, xE, vE: beltPredictAt(lb, bModel.slope, endMs)};
+      }
+    }
+    // Independent belt scale, padded and including the target + projected notch.
+    const allB = bEntries.map(e => e.belt).concat(bSeg ? [bSeg.vE] : [], [beltTgt()]);
+    const bMin = Math.min(...allB) - 0.4, bMax = Math.max(...allB) + 0.4;
+    const syB = v => H - py - ((v - bMin) / (bMax - bMin)) * (H - py*2);
+    // Reuse weight's x-mapping so a notch lines up with the weigh-in logged the
+    // same day; fall back to date interpolation only when no weigh-in matches.
+    const wIndex = {}; entries.forEach((e,i) => { wIndex[e.dk] = i; });
+    const bx = dk => {
+      if (hasPlan()) return Math.min(Math.max((new Date(dk+'T12:00:00').getTime() - ms0) / wkMs, 0), maxX);
+      if (dk in wIndex) return wIndex[dk];
+      if (entries.length < 2) return 0.5;
+      const tt = new Date(dk+'T12:00:00').getTime();
+      const f = new Date(entries[0].dk+'T12:00:00').getTime();
+      const l = new Date(entries[entries.length-1].dk+'T12:00:00').getTime();
+      return l > f ? Math.min(Math.max((tt-f)/(l-f)*(entries.length-1), 0), entries.length-1) : 0;
+    };
+    const bPts = bEntries.map(e => ({x: bx(e.dk), v: e.belt}));
+    const bPath = bPts.map((p,i) => (i===0?'M ':'L ') + sx(p.x).toFixed(1) + ' ' + syB(p.v).toFixed(1)).join(' ');
+    const bProjPath = bSeg ? 'M ' + sx(bSeg.xL).toFixed(1) + ' ' + syB(bSeg.vL).toFixed(1) +
+      ' L ' + sx(bSeg.xE).toFixed(1) + ' ' + syB(bSeg.vE).toFixed(1) : '';
+    // Notch dots keep the red→amber→green belt colour; labels sit below the line
+    // so they never collide with the weight labels sitting above their points.
+    const bDots = bPts.map(p =>
+      '<circle cx="' + sx(p.x).toFixed(1) + '" cy="' + syB(p.v).toFixed(1) + '" r="3.5" fill="' + beltColor(p.v) + '"/>' +
+      '<text x="' + sx(p.x).toFixed(1) + '" y="' + (syB(p.v)+13).toFixed(1) + '" fill="' + beltColor(p.v) + '" font-size="9" text-anchor="middle">' + p.v.toFixed(1) + '</text>'
+    ).join('');
+    const bProjDot = bSeg ?
+      '<circle cx="' + sx(bSeg.xE).toFixed(1) + '" cy="' + syB(bSeg.vE).toFixed(1) + '" r="3.5" fill="var(--green)"/>' +
+      '<text x="' + sx(bSeg.xE).toFixed(1) + '" y="' + (syB(bSeg.vE)+13).toFixed(1) + '" fill="var(--green)" font-size="9" text-anchor="middle">' + bSeg.vE.toFixed(1) + '</text>' : '';
+    beltSvg =
+      (bProjPath ? '<path d="' + bProjPath + '" fill="none" stroke="var(--green)" stroke-width="1.8" stroke-dasharray="2,3" stroke-linecap="round"/>' : '') +
+      '<path d="' + bPath + '" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
+      bDots + bProjDot;
+  }
+
   const wkLabels = hasPlan() ? Array.from({length:maxX+1},(_,i) =>
     '<text x="' + sx(i).toFixed(1) + '" y="' + (H-2) + '" fill="#465070" font-size="8.5" text-anchor="middle">' + (i===0 ? t('start') : 'W'+i) + '</text>'
   ).join('') : aPts.map((p, i) =>
@@ -2162,6 +2239,7 @@ function renderWeightChart(entries) {
     '<stop offset="0" stop-color="#00e5ff"/><stop offset="1" stop-color="#e879f9"/></linearGradient></defs>' +
     (expPts.length ? '<path d="' + expPath + '" fill="none" stroke="rgba(167,139,250,0.6)" stroke-width="1.5" stroke-dasharray="5,4"/>' : '') +
     (fcPath ? '<path d="' + fcPath + '" fill="none" stroke="var(--amber)" stroke-width="1.8" stroke-dasharray="2,3" stroke-linecap="round"/>' : '') +
+    beltSvg +
     (aPts.length ? '<path d="' + aPath + '" fill="none" stroke="url(#lg)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>' : '') +
     dots + fcDot + wkLabels + '</svg>' +
     (aPts.length ? '' : '<div class="chart-empty">' + illus('scale') + '<span>' + t('ins_weigh_in') + '</span></div>');
