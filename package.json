@@ -1,0 +1,12 @@
+{
+  "name": "leantracker",
+  "private": true,
+  "version": "1.0.0",
+  "description": "LeanTracker daily habit/nutrition/training tracker",
+  "scripts": {
+    "test": "node --test test/"
+  },
+  "devDependencies": {
+    "playwright": "^1.56.0"
+  }
+}

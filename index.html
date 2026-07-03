@@ -155,6 +155,16 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
 .sc-plus.pop{animation:scPop .4s cubic-bezier(.2,.8,.3,1);}
 @keyframes scPop{0%{transform:scale(.75);}55%{transform:scale(1.22);}100%{transform:scale(1);}}
 
+/* TOGGLE SWITCH (daily reminder) */
+.switch{position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0;}
+.switch input{opacity:0;width:0;height:0;position:absolute;}
+.switch .slider{position:absolute;inset:0;background:var(--bg3);border:1.5px solid var(--border2);
+  border-radius:24px;cursor:pointer;transition:all .2s;}
+.switch .slider::before{content:'';position:absolute;height:17px;width:17px;left:2px;top:2px;
+  background:var(--text2);border-radius:50%;transition:all .2s;}
+.switch input:checked + .slider{background:var(--grad);border-color:transparent;box-shadow:0 0 10px rgba(0,229,255,.35);}
+.switch input:checked + .slider::before{transform:translateX(20px);background:#031018;}
+
 /* CHECK ROWS (meals / lifts) */
 .chk{width:24px;height:24px;border-radius:8px;border:1.5px solid var(--border2);flex-shrink:0;
   display:flex;align-items:center;justify-content:center;font-size:13px;color:#031018;
@@ -540,7 +550,10 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
   <div class="hdr">
     <div class="hdr-row">
       <div><div class="disp hdr-title grad-text" data-k="progress"></div><div class="hdr-sub" data-k="your_journey"></div></div>
-      <button class="btn-acc" style="width:auto;padding:8px 14px;font-size:11px;margin:0;" onclick="openModal('body-modal')">+ <span data-k="log_body"></span></button>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button class="lang-btn" onclick="shareProgress()" id="share-btn" aria-label="share progress"></button>
+        <button class="btn-acc" style="width:auto;padding:8px 14px;font-size:11px;margin:0;" onclick="openModal('body-modal')">+ <span data-k="log_body"></span></button>
+      </div>
     </div>
   </div>
   <div style="height:8px"></div>
@@ -644,6 +657,18 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
     <div style="font-size:11.5px;color:var(--text2);line-height:1.6;margin-bottom:6px;" data-k="api_key_note"></div>
     <button class="mbtn" onclick="saveApiKey()"><span data-k="save_key"></span></button>
   </div>
+  <div class="shdr"><span class="shdr-t" data-k="reminder_title"></span></div>
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+      <div style="font-size:13px;font-weight:500;" data-k="reminder_toggle_lbl"></div>
+      <label class="switch"><input type="checkbox" id="s-remind-on" onchange="toggleReminder(this.checked)"><span class="slider"></span></label>
+    </div>
+    <div style="font-size:11px;color:var(--text2);margin-top:6px;line-height:1.5;" data-k="reminder_note"></div>
+    <div id="remind-time-row" style="margin-top:11px;display:none;">
+      <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;" data-k="reminder_time_lbl"></label>
+      <input class="inp" id="s-remind-time" type="time" style="margin:0;" onchange="saveReminderTime(this.value)">
+    </div>
+  </div>
   <div class="shdr"><span class="shdr-t" data-k="language"></span></div>
   <div style="display:flex;gap:8px;margin:0 14px 12px;">
     <button class="mbtn" style="background:var(--bg3);color:var(--text);border:1px solid var(--border2);box-shadow:none;" onclick="setLang('en')">English</button>
@@ -656,6 +681,11 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
     <input id="imp-inp" type="file" accept=".json" style="display:none;" onchange="importData(this)">
   </div>
   <div class="card" style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:12px;" data-k="backup_note"></div>
+  <div class="shdr"><span class="shdr-t" data-k="privacy_title"></span></div>
+  <div class="card">
+    <button class="mbtn" style="background:var(--bg3);color:var(--text);border:1px solid var(--border2);box-shadow:none;" onclick="openModal('privacy-modal')"><span data-k="privacy_view_btn"></span></button>
+    <button class="mbtn" style="margin-top:8px;background:var(--red-dim);color:var(--red);border:1px solid rgba(255,84,112,.35);box-shadow:none;" onclick="deleteAllData()"><span data-k="delete_all_btn"></span></button>
+  </div>
   <div class="shdr"><span class="shdr-t" data-k="about_pwa"></span></div>
   <div class="card" style="font-size:12px;color:var(--text2);line-height:1.7;" data-k="pwa_instructions"></div>
   <div id="version-tag" style="text-align:center;font-size:10px;color:var(--text3);font-family:var(--fd);letter-spacing:.1em;padding:4px 0 2px;"></div>
@@ -748,6 +778,15 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
 </div>
 
 <!-- BODY MODAL -->
+<div class="modal-ov" id="privacy-modal" onclick="if(event.target===this)closeModal('privacy-modal')">
+  <div class="modal">
+    <div class="modal-h"></div>
+    <div class="modal-t grad-text" data-k="privacy_policy_title"></div>
+    <div style="font-size:12.5px;color:var(--text2);line-height:1.7;white-space:pre-line;max-height:55vh;overflow-y:auto;" data-k="privacy_policy_text"></div>
+    <button class="mbtn" style="margin-top:14px;" onclick="closeModal('privacy-modal')"><span data-k="close"></span></button>
+  </div>
+</div>
+
 <div class="modal-ov" id="body-modal" onclick="if(event.target===this)closeModal('body-modal')">
   <div class="modal">
     <div class="modal-h"></div>
@@ -801,6 +840,17 @@ en:{
   the_rules:'The rules',
   settings:'Settings', your_targets:'Your targets', cal_range:'Calorie range (kcal)',
   protein_target:'Protein target (g)', goal_weight_s:'Goal weight (kg)', save:'Save',
+  reminder_title:'Daily reminder', reminder_toggle_lbl:'Remind me to log today',
+  reminder_note:'Browser notification while LeanTracker is open in a tab. Alerts with the app fully closed need a small push service — on the roadmap.',
+  reminder_time_lbl:'Reminder time',
+  reminder_denied:'Notifications are blocked for this site — enable them in your browser settings to use reminders.',
+  reminder_unsupported:'Notifications are not supported in this browser.',
+  reminder_notif_title:"Haven't logged today yet", reminder_notif_body:'A minute now keeps your streak alive.',
+  privacy_title:'Privacy & data', privacy_view_btn:'View privacy policy',
+  delete_all_btn:'Delete all my data',
+  delete_all_q:'Permanently delete all locally stored data (habits, calories, weight, plan, settings)? This cannot be undone — export a backup first if you want to keep it.',
+  delete_all_done:'✓ All data deleted', privacy_policy_title:'Privacy policy', close:'Close',
+  privacy_policy_text:'Last updated: [DATE]\n\nLeanTracker ("we", "us") is currently operated by [COMPANY NAME]. This policy explains what data the app handles and your rights over it.\n\nWhat we store: your habit, calorie, weight, waist, belt, training-note, and self-choice entries, plus your settings and any AI-generated plan. All of this is stored only in your browser’s local storage on your device — LeanTracker has no server and does not receive or store a copy of your data.\n\nAI features: if you use "Ask Claude" or "Generate plan", the request (including relevant tracked data) is sent directly from your browser to Anthropic’s API using an API key you provide. We do not see or retain this traffic.\n\nNo sale, no third-party tracking: we do not sell your data, and the app does not currently use third-party analytics or advertising trackers.\n\nYour rights (GDPR): if you are in the EU/EEA, you have the right to access, rectify, export (see Export JSON in Settings), and erase your data (see Delete all my data below), and to withdraw consent at any time by deleting local data or uninstalling the app.\n\nYour rights (CCPA): if you are a California resident, you have the right to know what personal information is collected, to request deletion, and to opt out of the sale of personal information — we do not sell personal information.\n\nData retention: your data stays on your device until you delete it, clear your browser storage, or uninstall the app; we retain nothing centrally.\n\nChildren: LeanTracker is not directed at children under 13 (or the minimum age in your jurisdiction).\n\nChanges: we may update this policy as the product evolves; continued use after an update constitutes acceptance.\n\nContact: for privacy questions or data requests, contact [CONTACT EMAIL].',
   claude_access:'Claude access', api_key:'Anthropic API key',
   api_key_note:'Stored only on this device (localStorage). Get a key at console.anthropic.com → API Keys. Without it, Ask Claude cannot reach the API.',
   save_key:'Save key',
@@ -874,6 +924,17 @@ es:{
   the_rules:'Las reglas',
   settings:'Ajustes', your_targets:'Tus objetivos', cal_range:'Rango calorías (kcal)',
   protein_target:'Proteína objetivo (g)', goal_weight_s:'Peso meta (kg)', save:'Guardar',
+  reminder_title:'Recordatorio diario', reminder_toggle_lbl:'Recuérdame registrar hoy',
+  reminder_note:'Notificación del navegador mientras LeanTracker esté abierto en una pestaña. Los avisos con la app cerrada necesitan un pequeño servicio push — en el roadmap.',
+  reminder_time_lbl:'Hora del recordatorio',
+  reminder_denied:'Las notificaciones están bloqueadas para este sitio — actívalas en los ajustes del navegador para usar recordatorios.',
+  reminder_unsupported:'Este navegador no admite notificaciones.',
+  reminder_notif_title:'Aún no registraste hoy', reminder_notif_body:'Un minuto ahora mantiene tu racha viva.',
+  privacy_title:'Privacidad y datos', privacy_view_btn:'Ver política de privacidad',
+  delete_all_btn:'Eliminar todos mis datos',
+  delete_all_q:'¿Eliminar permanentemente todos los datos guardados localmente (hábitos, calorías, peso, plan, ajustes)? Esto no se puede deshacer — exporta una copia de seguridad antes si quieres conservarlos.',
+  delete_all_done:'✓ Todos los datos eliminados', privacy_policy_title:'Política de privacidad', close:'Cerrar',
+  privacy_policy_text:'Última actualización: [FECHA]\n\nLeanTracker ("nosotros") es operado actualmente por [NOMBRE DE LA EMPRESA]. Esta política explica qué datos maneja la app y cuáles son tus derechos sobre ellos.\n\nQué guardamos: tus registros de hábitos, calorías, peso, cintura, nivel de cinturón, notas de entreno y contador de "me elegí", además de tus ajustes y cualquier plan generado por IA. Todo esto se guarda únicamente en el almacenamiento local de tu navegador, en tu dispositivo — LeanTracker no tiene servidor y no recibe ni guarda una copia de tus datos.\n\nFunciones de IA: si usas "Preguntar a Claude" o "Generar plan", la solicitud (incluyendo los datos registrados relevantes) se envía directamente desde tu navegador a la API de Anthropic usando una clave API que tú proporcionas. No vemos ni conservamos ese tráfico.\n\nSin venta ni rastreo de terceros: no vendemos tus datos, y la app actualmente no usa analítica ni rastreadores publicitarios de terceros.\n\nTus derechos (RGPD): si estás en la UE/EEE, tienes derecho a acceder, rectificar, exportar (ver Exportar JSON en Ajustes) y eliminar tus datos (ver Eliminar todos mis datos abajo), y a retirar tu consentimiento en cualquier momento eliminando los datos locales o desinstalando la app.\n\nTus derechos (CCPA): si resides en California, tienes derecho a saber qué información personal se recopila, a solicitar su eliminación y a rechazar la venta de información personal — no vendemos información personal.\n\nRetención de datos: tus datos permanecen en tu dispositivo hasta que los elimines, borres el almacenamiento del navegador o desinstales la app; nosotros no retenemos nada de forma centralizada.\n\nMenores: LeanTracker no está dirigido a menores de 13 años (o la edad mínima en tu jurisdicción).\n\nCambios: podemos actualizar esta política a medida que el producto evoluciona; el uso continuado tras una actualización constituye aceptación.\n\nContacto: para preguntas de privacidad o solicitudes sobre tus datos, contacta a [CORREO DE CONTACTO].',
   claude_access:'Acceso a Claude', api_key:'Clave API de Anthropic',
   api_key_note:'Se guarda solo en este dispositivo (localStorage). Consigue una clave en console.anthropic.com → API Keys. Sin ella, Preguntar a Claude no puede acceder a la API.',
   save_key:'Guardar clave',
@@ -1051,6 +1112,7 @@ const CICON_FN = {
   trendup:   '<path d="M4 16 L10 10 L13.5 13.5 L20 7"/><path d="M20 7 H14.5"/><path d="M20 7 V12.5"/>',
   calendar:  '<rect x="4" y="5" width="16" height="16" rx="2.5"/><path d="M8 3 V7"/><path d="M16 3 V7"/><path d="M4 10.5 H20"/>',
   scalemini: '<rect x="5" y="4.5" width="14" height="15" rx="3.5"/><path d="M8.6 11.5 A 4.2 4.2 0 0 1 15.4 11.5"/><path d="M12 12 L14.3 8.9"/>',
+  share:     '<path d="M12 15 V4"/><path d="M7.5 8.5 L12 4 L16.5 8.5"/><path d="M5 13 V19 A1.5 1.5 0 0 0 6.5 20.5 H17.5 A1.5 1.5 0 0 0 19 19 V13"/>',
 };
 function cicon(name, size) {
   const s = size || 13;
@@ -1202,6 +1264,7 @@ function getWeekKeys(wn) {
 let DB = JSON.parse(localStorage.getItem('lt_db') || 'null');
 let settings = JSON.parse(localStorage.getItem('lt_settings') || '{"calMin":1800,"calMax":2200,"protein":120,"goalWeight":null,"tdee":null}');
 let apiKey = localStorage.getItem('lt_apikey') || '';
+let reminder = JSON.parse(localStorage.getItem('lt_reminder') || '{"on":false,"time":"20:00","lastNotified":null}');
 let lang = localStorage.getItem('lt_lang') || 'en';
 
 function persist() { localStorage.setItem('lt_db', JSON.stringify(DB)); }
@@ -2348,6 +2411,94 @@ function renderCompChart() {
   document.getElementById('comp-chart').innerHTML = html;
 }
 
+function currentWeekPct() {
+  const wn = Math.max(todayWn(), 1);
+  let pass = 0, tot = 0;
+  getWeekKeys(wn).forEach(dk => {
+    const day = DB[dk];
+    if (!day) return;
+    HKEYS.filter(k => k !== 'cal').forEach(k => {
+      const v = day.habits?.[k];
+      if (v !== null && v !== undefined) { tot++; if (v === 1) pass++; }
+    });
+  });
+  return tot > 0 ? Math.round((pass / tot) * 100) : null;
+}
+
+// Renders a shareable snapshot card to canvas, client-side only — no server
+// round-trip. Shares via the Web Share API where available, else downloads.
+function shareProgress() {
+  const entries = weightEntries();
+  const latest  = entries[entries.length - 1];
+  const streak  = calcStreak();
+  const pct     = currentWeekPct();
+  const belt    = latestBelt();
+
+  const W = 720, H = 900;
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  const bg = ctx.createLinearGradient(0, 0, W, H);
+  bg.addColorStop(0, '#050914'); bg.addColorStop(1, '#0b1224');
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+
+  const glow = ctx.createRadialGradient(W * 0.82, H * 0.08, 10, W * 0.82, H * 0.08, 420);
+  glow.addColorStop(0, 'rgba(0,229,255,0.22)'); glow.addColorStop(1, 'rgba(0,229,255,0)');
+  ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
+
+  // Gradient sized to each string's own bounding box, not the full canvas —
+  // otherwise a short string near the left edge just reads as solid cyan.
+  function gradText(text, x, y, font) {
+    ctx.font = font;
+    const w = ctx.measureText(text).width;
+    const g = ctx.createLinearGradient(x, 0, x + w, 0);
+    g.addColorStop(0, '#00e5ff'); g.addColorStop(1, '#e879f9');
+    ctx.fillStyle = g;
+    ctx.fillText(text, x, y);
+  }
+
+  gradText('LEANTRACKER', 48, 80, '700 34px system-ui, -apple-system, sans-serif');
+
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.font = '500 16px system-ui, -apple-system, sans-serif';
+  ctx.fillText(fmtDate(new Date()), 48, 108);
+
+  gradText(String(streak), 48, 280, '800 120px system-ui, -apple-system, sans-serif');
+  ctx.fillStyle = 'rgba(255,255,255,0.65)';
+  ctx.font = '600 22px system-ui, -apple-system, sans-serif';
+  ctx.fillText(lang === 'en' ? 'DAY STREAK' : 'DÍAS DE RACHA', 48, 320);
+
+  function stat(y, label, value) {
+    ctx.fillStyle = 'rgba(255,255,255,0.92)';
+    ctx.font = '700 40px system-ui, -apple-system, sans-serif';
+    ctx.fillText(value, 48, y);
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.font = '500 15px system-ui, -apple-system, sans-serif';
+    ctx.fillText(label, 48, y + 26);
+  }
+  stat(430, lang === 'en' ? 'WEEK COMPLIANCE' : 'CUMPLIMIENTO SEM.', pct != null ? pct + '%' : '—');
+  stat(510, lang === 'en' ? 'WEIGHT' : 'PESO', latest ? latest.weight + ' kg' : '—');
+  if (belt != null) stat(590, lang === 'en' ? 'BELT LEVEL' : 'NIVEL CINTURÓN', belt.toFixed(1));
+
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.font = '500 14px system-ui, -apple-system, sans-serif';
+  ctx.fillText(lang === 'en' ? 'Tracked with LeanTracker' : 'Registrado con LeanTracker', 48, H - 40);
+
+  canvas.toBlob(async (blob) => {
+    const file = new File([blob], 'leantracker-progress.png', { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: 'LeanTracker' }); return; }
+      catch (e) { /* user cancelled the share sheet — fall back to a direct download */ }
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'leantracker-progress-' + dkey(new Date()) + '.png';
+    a.click();
+    URL.revokeObjectURL(url);
+  }, 'image/png');
+}
+
 function openModal(id)  { if (id === 'body-modal') initBodyModal(); document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
@@ -2932,6 +3083,9 @@ function renderSettingsForm() {
   document.getElementById('s-goal').value   = settings.goalWeight ?? '';
   document.getElementById('s-start').value  = (PLAN && PLAN.startDate) || settings.startDate || '';
   document.getElementById('s-apikey').value = apiKey;
+  document.getElementById('s-remind-on').checked = reminder.on;
+  document.getElementById('s-remind-time').value = reminder.time || '20:00';
+  document.getElementById('remind-time-row').style.display = reminder.on ? '' : 'none';
   document.getElementById('plan-status').innerHTML = PLAN
     ? t('plan_active') + ': <strong style="color:var(--accent);">' + (PLAN.name || 'PLAN') + '</strong> · ' +
       fmtDate(new Date(PLAN.startDate + 'T12:00:00')) + ' · ' + PLAN.weeks + ' ' + t('weeks_w')
@@ -2958,6 +3112,51 @@ function saveApiKey() {
   apiKey = document.getElementById('s-apikey').value.trim();
   localStorage.setItem('lt_apikey', apiKey);
   alert(lang === 'en' ? (apiKey ? '✓ API key saved' : 'API key cleared') : (apiKey ? '✓ Clave guardada' : 'Clave eliminada'));
+}
+
+// ─────────────────────────────────────────────────────────────────
+// DAILY REMINDER
+// Foreground-only: fires while the tab is open/visited, via the existing
+// handleResume() wake-up path. A closed-app alert needs a push service
+// (server-side), which is out of scope for this client-only build.
+// ─────────────────────────────────────────────────────────────────
+async function toggleReminder(on) {
+  if (on) {
+    if (!('Notification' in window)) {
+      alert(t('reminder_unsupported'));
+      document.getElementById('s-remind-on').checked = false;
+      return;
+    }
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') {
+      alert(t('reminder_denied'));
+      document.getElementById('s-remind-on').checked = false;
+      return;
+    }
+  }
+  reminder.on = on;
+  localStorage.setItem('lt_reminder', JSON.stringify(reminder));
+  document.getElementById('remind-time-row').style.display = on ? '' : 'none';
+  if (on) checkReminder();
+}
+
+function saveReminderTime(val) {
+  reminder.time = val;
+  localStorage.setItem('lt_reminder', JSON.stringify(reminder));
+}
+
+function checkReminder() {
+  if (!reminder.on || !('Notification' in window) || Notification.permission !== 'granted') return;
+  const now = new Date();
+  const tk = todayKey();
+  if (reminder.lastNotified === tk) return;               // already nudged today
+  const [h, m] = (reminder.time || '20:00').split(':').map(Number);
+  const target = new Date(now); target.setHours(h, m, 0, 0);
+  if (now < target) return;
+  if (isActiveDay(tk)) return;                            // already logged today
+  new Notification(t('reminder_notif_title'), { body: t('reminder_notif_body') });
+  reminder.lastNotified = tk;
+  localStorage.setItem('lt_reminder', JSON.stringify(reminder));
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -2991,6 +3190,20 @@ function importData(input) {
   input.value = '';
 }
 
+function deleteAllData() {
+  if (!confirm(t('delete_all_q'))) return;
+  ['lt_db', 'lt_plan', 'lt_settings', 'lt_apikey', 'lt_reminder'].forEach(k => localStorage.removeItem(k));
+  DB = {};
+  PLAN = null;
+  apiKey = '';
+  reminder = { on: false, time: '20:00', lastNotified: null };
+  settings = { calMin: 1800, calMax: 2200, protein: 120, goalWeight: null, tdee: null };
+  persist();
+  applyPlan();
+  renderActive();
+  alert(t('delete_all_done'));
+}
+
 // ─────────────────────────────────────────────────────────────────
 // BOOT
 // ─────────────────────────────────────────────────────────────────
@@ -3002,6 +3215,7 @@ if (latestBelt() == null) { getDay(todayKey()).belt = 3.8; persist(); }
 viewWn = Math.max(todayWn(), 1);  // week view starts on current program week
 applyI18n();
 renderToday();
+checkReminder();
 
 // ── Day-rollover / resume handling: a PWA restored from memory keeps
 // running with the old date — re-anchor "today" whenever we wake up.
@@ -3016,12 +3230,14 @@ function handleResume() {
   }
   updateStreak();
   if (activeScr === 'today') updateRings();
+  checkReminder();
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden) handleResume(); });
 window.addEventListener('pageshow', handleResume);
 setInterval(handleResume, 60000);
 document.getElementById('version-tag').textContent = 'LEANTRACKER ' + APP_VERSION;
 document.getElementById('cal-btn').innerHTML = cicon('calendar', 13);
+document.getElementById('share-btn').innerHTML = cicon('share', 14);
 
 // dismiss the boot sequence once the first paint is in
 setTimeout(() => {
