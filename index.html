@@ -134,6 +134,27 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
   box-shadow:0 0 12px rgba(255,84,112,.3);}
 @keyframes facePop{0%{transform:scale(.7);}60%{transform:scale(1.18);}100%{transform:scale(1);}}
 
+/* SELF-CHOICE COUNTER */
+.sc-card{margin:0 14px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);
+  padding:16px;display:flex;align-items:center;gap:14px;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);}
+.sc-count{font-family:var(--fd);font-weight:800;font-size:32px;line-height:1;
+  background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;display:inline-block;}
+.sc-lbl{font-size:11px;color:var(--text2);margin-top:3px;}
+.sc-count.bump{animation:scBump .38s cubic-bezier(.2,.8,.3,1);}
+@keyframes scBump{0%{transform:scale(1);}45%{transform:scale(1.32);}100%{transform:scale(1);}}
+.sc-minus{width:28px;height:28px;border-radius:50%;border:1.5px solid var(--border2);background:var(--bg3);
+  color:var(--text2);font-size:16px;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;transition:all .2s;flex-shrink:0;}
+.sc-minus:active{background:var(--bg4);}
+.sc-minus:disabled{opacity:.4;cursor:default;}
+.sc-plus{width:54px;height:54px;border-radius:50%;border:none;background:var(--grad);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;
+  box-shadow:0 0 18px rgba(0,229,255,.35);transition:transform .15s;}
+.sc-plus svg{width:24px;height:24px;}
+.sc-plus:active{transform:scale(.88);}
+.sc-plus.pop{animation:scPop .4s cubic-bezier(.2,.8,.3,1);}
+@keyframes scPop{0%{transform:scale(.75);}55%{transform:scale(1.22);}100%{transform:scale(1);}}
+
 /* CHECK ROWS (meals / lifts) */
 .chk{width:24px;height:24px;border-radius:8px;border:1.5px solid var(--border2);flex-shrink:0;
   display:flex;align-items:center;justify-content:center;font-size:13px;color:#031018;
@@ -450,6 +471,19 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
   <div class="hlist" id="meal-list"></div>
   <div class="shdr"><span class="shdr-t" data-k="todays_habits"></span><span class="badge" id="score-badge">—</span></div>
   <div class="hlist" id="hlist"></div>
+  <div class="shdr"><span class="shdr-t" data-k="self_choice_title"></span></div>
+  <div class="sc-card">
+    <button class="sc-minus" id="sc-minus-btn" onclick="bumpSelfChoice(-1)" aria-label="minus">−</button>
+    <div style="flex:1;">
+      <span class="sc-count" id="sc-count">0</span>
+      <div class="sc-lbl" data-k="self_choice_sub"></div>
+    </div>
+    <button class="sc-plus" id="sc-plus-btn" onclick="bumpSelfChoice(1)" aria-label="chose myself">
+      <svg viewBox="0 0 24 24" fill="#031018" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 19.3 C12 19.3 4 13.7 4 8.5 A4.4 4.4 0 0 1 12 5.9 A4.4 4.4 0 0 1 20 8.5 C20 13.7 12 19.3 12 19.3 Z"/>
+      </svg>
+    </button>
+  </div>
   <div id="workout-section"></div>
   <div class="shdr"><span class="shdr-t" data-k="training_today"></span></div>
   <div class="card" style="padding:11px 14px;">
@@ -741,6 +775,7 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
 const L = {
 en:{
   targets:'Targets', todays_habits:"Today's habits", training_today:'Training notes',
+  self_choice_title:'Chose myself', self_choice_sub:'times today',
   meal_plan:'Meal plan', workout:'Workout', lifts:'lifts',
   weekly_view:'Weekly view', compliance:'Compliance', avg_cal:'Avg kcal',
   habit_grid:'Habit grid', calories_week:'Calories', training_log:'Training log',
@@ -813,6 +848,7 @@ en:{
 },
 es:{
   targets:'Objetivos', todays_habits:'Hábitos de hoy', training_today:'Notas de entreno',
+  self_choice_title:'Me elegí', self_choice_sub:'veces hoy',
   meal_plan:'Plan de comidas', workout:'Entrenamiento', lifts:'ejercicios',
   weekly_view:'Vista semanal', compliance:'Cumplimiento', avg_cal:'Kcal prom',
   habit_grid:'Cuadrícula', calories_week:'Calorías', training_log:'Registro entreno',
@@ -1171,10 +1207,11 @@ let lang = localStorage.getItem('lt_lang') || 'en';
 function persist() { localStorage.setItem('lt_db', JSON.stringify(DB)); }
 
 function getDay(dk) {
-  if (!DB[dk]) DB[dk] = {habits:{},cal:null,training:'',weight:null,waist:null,belt:null,meals:{},lifts:{}};
+  if (!DB[dk]) DB[dk] = {habits:{},cal:null,training:'',weight:null,waist:null,belt:null,meals:{},lifts:{},selfChoice:0};
   const d = DB[dk];
   if (!d.meals) d.meals = {};
   if (!d.lifts) d.lifts = {};
+  if (d.selfChoice == null) d.selfChoice = 0;
   return d;
 }
 
@@ -1252,7 +1289,7 @@ function programDayIdx() {
 function isActiveDay(dk) {
   const d = DB[dk];
   if (!d) return false;
-  if (d.cal || d.training || d.weight || d.waist || d.runDone) return true;
+  if (d.cal || d.training || d.weight || d.waist || d.runDone || d.selfChoice) return true;
   if (d.habits && Object.values(d.habits).some(v => v !== null && v !== undefined)) return true;
   if (d.meals && Object.keys(d.meals).length) return true;
   if (d.lifts && Object.keys(d.lifts).length) return true;
@@ -1464,6 +1501,7 @@ function renderToday() {
       '</div>';
   }
   renderHabits(dk, day, tCal);
+  renderSelfChoice(dk);
   renderWorkout(dk, plan);
   refreshScore(dk);
   updateRings();
@@ -1570,6 +1608,33 @@ function renderHabits(dk, day, tCal) {
     }
     list.appendChild(item);
   });
+}
+
+function renderSelfChoice(dk) {
+  const day = getDay(dk);
+  const n = day.selfChoice || 0;
+  const countEl = document.getElementById('sc-count');
+  if (countEl) countEl.textContent = n;
+  const minusBtn = document.getElementById('sc-minus-btn');
+  if (minusBtn) minusBtn.disabled = n <= 0;
+}
+
+function bumpSelfChoice(delta) {
+  const dk = selKey();
+  const day = getDay(dk);
+  day.selfChoice = Math.max(0, (day.selfChoice || 0) + delta);
+  persist();
+  renderSelfChoice(dk);
+  updateStreak();
+  if (delta > 0) {
+    const btn = document.getElementById('sc-plus-btn');
+    const countEl = document.getElementById('sc-count');
+    if (btn) {
+      btn.classList.remove('pop'); void btn.offsetWidth; btn.classList.add('pop');
+      burst(btn);
+    }
+    if (countEl) { countEl.classList.remove('bump'); void countEl.offsetWidth; countEl.classList.add('bump'); }
+  }
 }
 
 function renderWorkout(dk, plan) {
