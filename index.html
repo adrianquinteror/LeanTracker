@@ -1795,7 +1795,7 @@ function saveTodayField(field, val) {
 // ─────────────────────────────────────────────────────────────────
 // WEEK SCREEN
 // ─────────────────────────────────────────────────────────────────
-let viewWn = Math.max(todayWn(), 1);
+let viewWn = todayWn();
 
 function changeWeek(dir) {
   viewWn = viewWn + dir;   // free navigation — weeks before W1 show as W0, W-1, ...
@@ -3212,7 +3212,7 @@ seedHistory();            // no-op if DB already exists in localStorage
 // Belt-level waist tracking: target notch 5.3 ≈ goal weight; current 3.8.
 if (settings.beltTarget == null) { settings.beltTarget = 5.3; localStorage.setItem('lt_settings', JSON.stringify(settings)); }
 if (latestBelt() == null) { getDay(todayKey()).belt = 3.8; persist(); }
-viewWn = Math.max(todayWn(), 1);  // week view starts on current program week
+viewWn = todayWn();  // week view starts on current program week (can be ≤0 before W1)
 applyI18n();
 renderToday();
 checkReminder();
