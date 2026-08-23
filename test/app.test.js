@@ -35,6 +35,7 @@ function startStaticServer() {
 let server;
 let browser;
 let page;
+let viewPage; // a second tab loaded with ?share=<uid> — coach/read-only mode
 
 before(async () => {
   server = await startStaticServer();
@@ -44,6 +45,10 @@ before(async () => {
   page = await browser.newPage();
   await page.goto(server.url);
   await page.waitForFunction(() => typeof DB !== 'undefined');
+
+  viewPage = await browser.newPage();
+  await viewPage.goto(server.url + '?share=test-uid-123');
+  await viewPage.waitForFunction(() => typeof DB !== 'undefined');
 });
 
 after(async () => {
@@ -204,4 +209,93 @@ test('normalizePlan() fills in day-level defaults (tag/illus) without overwritin
   assert.equal(days[1].hasWorkout, false);
   assert.equal(days[1].illus, 'rest');
   assert.deepEqual(days[0].tag, { en: '', es: '' });
+});
+
+// ─────────────────────────────────────────────────────────────────
+// COACH SHARE MODE (?share=<uid>)
+// These only exercise the local guard/view logic — a live round-trip
+// against real Firestore is manual QA (see README), not something this
+// offline Playwright harness can do.
+// ─────────────────────────────────────────────────────────────────
+
+test('VIEW_ONLY/SHARE_UID reflect the ?share= query param; a plain load has neither', async () => {
+  const normal = await page.evaluate(() => ({ viewOnly: VIEW_ONLY, uid: SHARE_UID }));
+  const shared = await viewPage.evaluate(() => ({ viewOnly: VIEW_ONLY, uid: SHARE_UID }));
+  assert.deepEqual(normal, { viewOnly: false, uid: null });
+  assert.deepEqual(shared, { viewOnly: true, uid: 'test-uid-123' });
+});
+
+test('a ?share= load adds body.view-only synchronously; a plain load never does', async () => {
+  const normalHasClass = await page.evaluate(() => document.body.classList.contains('view-only'));
+  const sharedHasClass = await viewPage.evaluate(() => document.body.classList.contains('view-only'));
+  assert.equal(normalHasClass, false);
+  assert.equal(sharedHasClass, true);
+});
+
+test('every gated mutator no-ops in view-only mode: no in-memory or localStorage change', async () => {
+  const result = await viewPage.evaluate(() => {
+    const before = { ...localStorage };
+    const dbBefore = JSON.stringify(DB);
+    const settingsBefore = JSON.stringify(settings);
+    const planBefore = JSON.stringify(PLAN);
+
+    toggleMeal('2026-01-01', 0, null);
+    toggleLift('2026-01-01', 0, null);
+    setHabit({ parentElement: { getAttribute: () => 'x', querySelectorAll: () => [] } }, 1);
+    onCalInput('2000', 2000);
+    saveTodayField('training', 'run');
+    bumpSelfChoice(1);
+    toggleRun('2026-01-01', null);
+    saveBodyEntry();
+    saveSettings();
+    saveApiKey();
+    toggleReminder(true);
+    saveReminderTime('08:00');
+    resetPlan();
+    deleteAllData();
+    importData({ files: [] });
+    exportData();
+
+    const after = { ...localStorage };
+    return {
+      localStorageUnchanged: JSON.stringify(before) === JSON.stringify(after),
+      dbUnchanged: JSON.stringify(DB) === dbBefore,
+      settingsUnchanged: JSON.stringify(settings) === settingsBefore,
+      planUnchanged: JSON.stringify(PLAN) === planBefore,
+    };
+  });
+  assert.deepEqual(result, {
+    localStorageUnchanged: true, dbUnchanged: true, settingsUnchanged: true, planUnchanged: true,
+  });
+});
+
+test('toggleLang() still works in view-only mode — the one permitted change', async () => {
+  const result = await viewPage.evaluate(() => {
+    const before = lang;
+    toggleLang();
+    const afterLang = lang;
+    const stored = localStorage.getItem('lt_lang');
+    return { before, afterLang, stored };
+  });
+  assert.notEqual(result.before, result.afterLang);
+  assert.equal(result.stored, result.afterLang);
+});
+
+test('.no-view controls and #coach-banner are hidden/shown only under body.view-only', async () => {
+  // The Share-with-Coach button lives on the Settings tab, which isn't
+  // active by default — switch to it on both pages first. Uses
+  // Playwright's own visibility check (accounts for ancestor
+  // display:none), not getComputedStyle — an element's own computed
+  // `display` doesn't reflect a hidden ancestor.
+  await page.evaluate(() => showScr('settings'));
+  await viewPage.evaluate(() => showScr('settings'));
+
+  assert.equal(await page.locator('#coach-banner').isVisible(), false);
+  assert.equal(await page.locator('button[onclick="shareWithCoach()"]').isVisible(), true);
+
+  assert.equal(await viewPage.locator('#coach-banner').isVisible(), true);
+  assert.equal(await viewPage.locator('button[onclick="shareWithCoach()"]').isVisible(), false);
+
+  await page.evaluate(() => showScr('today'));
+  await viewPage.evaluate(() => showScr('today'));
 });
