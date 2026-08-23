@@ -406,6 +406,14 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
   transition:transform .4s cubic-bezier(.2,.8,.3,1);box-shadow:0 0 26px rgba(0,229,255,.25);}
 .toast.show{transform:translate(-50%,0);}
 
+/* COACH SHARE MODE (read-only) */
+#coach-banner{display:none;position:fixed;top:var(--st);left:0;right:0;z-index:200;
+  background:var(--grad);color:#04070d;font-family:var(--fd);font-weight:700;
+  font-size:10.5px;letter-spacing:.1em;text-align:center;padding:7px 10px;}
+body.view-only #coach-banner{display:block;}
+body.view-only .no-view{display:none !important;}
+body.view-only{padding-top:30px;}
+
 /* DAY STRIP */
 .dstrip{display:flex;gap:5px;padding:0 14px 12px;align-items:stretch;}
 .dchip{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:7px 0 6px;
@@ -455,8 +463,19 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
   <div class="boot-bar"><div class="boot-fill"></div></div>
 </div>
 
+<!-- COACH VIEW: shown instead of #boot if the shared link has nothing
+     to show (never shared / sharing stopped / can't reach Firestore) -->
+<div id="share-unavailable" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;position:fixed;inset:0;z-index:999;background:var(--bg);text-align:center;padding:0 32px;">
+  <div class="disp grad-text" style="font-size:22px;letter-spacing:.14em;">LEANTRACKER</div>
+  <div style="color:var(--text2);font-size:13px;line-height:1.6;max-width:320px;" data-k="share_unavailable_msg"></div>
+  <button class="mbtn" style="width:auto;padding:10px 22px;" onclick="location.reload()" data-k="retry_btn"></button>
+</div>
+
 <!-- TOAST -->
 <div id="toast" class="toast"></div>
+
+<!-- COACH BANNER: only visible in read-only share mode -->
+<div id="coach-banner" data-k="coach_banner"></div>
 
 <!-- TODAY -->
 <div id="scr-today" class="scr active">
@@ -552,7 +571,7 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
       <div><div class="disp hdr-title grad-text" data-k="progress"></div><div class="hdr-sub" data-k="your_journey"></div></div>
       <div style="display:flex;align-items:center;gap:8px;">
         <button class="lang-btn" onclick="shareProgress()" id="share-btn" aria-label="share progress"></button>
-        <button class="btn-acc" style="width:auto;padding:8px 14px;font-size:11px;margin:0;" onclick="openModal('body-modal')">+ <span data-k="log_body"></span></button>
+        <button class="btn-acc no-view" style="width:auto;padding:8px 14px;font-size:11px;margin:0;" onclick="openModal('body-modal')">+ <span data-k="log_body"></span></button>
       </div>
     </div>
   </div>
@@ -607,13 +626,13 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
   <div class="shdr"><span class="shdr-t" data-k="insights"></span></div>
   <div id="insights-wrap"></div>
   <div style="height:1px;background:var(--border);margin:6px 14px 14px;"></div>
-  <div class="shdr"><span class="shdr-t" data-k="ask_claude"></span></div>
-  <div style="padding:0 14px 11px;" id="quick-prompts"></div>
-  <div class="card" style="padding:11px 14px;">
+  <div class="shdr no-view"><span class="shdr-t" data-k="ask_claude"></span></div>
+  <div style="padding:0 14px 11px;" id="quick-prompts" class="no-view"></div>
+  <div class="card no-view" style="padding:11px 14px;">
     <textarea class="inp" id="custom-q" rows="3" style="resize:none;margin-bottom:8px;"></textarea>
     <button class="mbtn" onclick="askClaude()"><span data-k="ask_btn"></span></button>
   </div>
-  <div class="ai-box" id="ai-box"></div>
+  <div class="ai-box no-view" id="ai-box"></div>
   <div style="height:14px;"></div>
 </div>
 
@@ -621,8 +640,8 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
 <div id="scr-settings" class="scr">
   <div class="hdr"><div class="hdr-row"><div><div class="disp hdr-title grad-text" data-k="settings"></div></div><button class="lang-btn" onclick="toggleLang()" id="lang-btn2">ES</button></div></div>
   <div style="height:8px"></div>
-  <div class="shdr"><span class="shdr-t" data-k="your_targets"></span></div>
-  <div class="card">
+  <div class="shdr no-view"><span class="shdr-t" data-k="your_targets"></span></div>
+  <div class="card no-view">
     <div style="margin-bottom:11px;"><label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;" data-k="cal_range"></label>
       <div style="display:flex;gap:7px;align-items:center;">
         <input class="inp" id="s-calmin" type="number" style="flex:1;margin:0;">
@@ -641,8 +660,8 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
       <input class="inp" id="s-start" type="date" style="margin:0;"></div>
     <button class="mbtn" onclick="saveSettings()"><span data-k="save"></span></button>
   </div>
-  <div class="shdr"><span class="shdr-t" data-k="plan_section"></span></div>
-  <div class="card">
+  <div class="shdr no-view"><span class="shdr-t" data-k="plan_section"></span></div>
+  <div class="card no-view">
     <div style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:10px;" id="plan-status"></div>
     <button class="mbtn" onclick="document.getElementById('plan-imp').click()"><span data-k="import_plan"></span></button>
     <input id="plan-imp" type="file" accept=".json" style="display:none;" onchange="importPlanFile(this)">
@@ -650,15 +669,15 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
     <button class="mbtn" style="margin-top:8px;" onclick="openGenModal()"><span data-k="generate_plan"></span></button>
     <button class="mbtn" style="margin-top:8px;background:var(--red-dim);color:var(--red);border:1px solid rgba(255,84,112,.35);box-shadow:none;" onclick="resetPlan()"><span data-k="reset_plan"></span></button>
   </div>
-  <div class="shdr"><span class="shdr-t" data-k="claude_access"></span></div>
-  <div class="card">
+  <div class="shdr no-view"><span class="shdr-t" data-k="claude_access"></span></div>
+  <div class="card no-view">
     <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px;" data-k="api_key"></label>
     <input class="inp" id="s-apikey" type="password" placeholder="sk-ant-..." autocomplete="off">
     <div style="font-size:11.5px;color:var(--text2);line-height:1.6;margin-bottom:6px;" data-k="api_key_note"></div>
     <button class="mbtn" onclick="saveApiKey()"><span data-k="save_key"></span></button>
   </div>
-  <div class="shdr"><span class="shdr-t" data-k="reminder_title"></span></div>
-  <div class="card">
+  <div class="shdr no-view"><span class="shdr-t" data-k="reminder_title"></span></div>
+  <div class="card no-view">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
       <div style="font-size:13px;font-weight:500;" data-k="reminder_toggle_lbl"></div>
       <label class="switch"><input type="checkbox" id="s-remind-on" onchange="toggleReminder(this.checked)"><span class="slider"></span></label>
@@ -674,17 +693,23 @@ body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opa
     <button class="mbtn" style="background:var(--bg3);color:var(--text);border:1px solid var(--border2);box-shadow:none;" onclick="setLang('en')">English</button>
     <button class="mbtn" style="background:var(--bg3);color:var(--text);border:1px solid var(--border2);box-shadow:none;" onclick="setLang('es')">Español</button>
   </div>
-  <div class="shdr"><span class="shdr-t" data-k="data_backup"></span></div>
-  <div class="export-row">
+  <div class="shdr no-view"><span class="shdr-t" data-k="share_coach_title"></span></div>
+  <div class="card no-view">
+    <div style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:10px;" data-k="share_coach_note"></div>
+    <button class="mbtn" onclick="shareWithCoach()"><span data-k="share_coach_btn"></span></button>
+    <button class="mbtn" style="margin-top:8px;background:var(--red-dim);color:var(--red);border:1px solid rgba(255,84,112,.35);box-shadow:none;" onclick="stopSharing()"><span data-k="stop_sharing_btn"></span></button>
+  </div>
+  <div class="shdr no-view"><span class="shdr-t" data-k="data_backup"></span></div>
+  <div class="export-row no-view">
     <button class="exp-btn" onclick="exportData()" data-k="export_btn"></button>
     <button class="exp-btn" onclick="document.getElementById('imp-inp').click()" data-k="import_btn"></button>
     <input id="imp-inp" type="file" accept=".json" style="display:none;" onchange="importData(this)">
   </div>
-  <div class="card" style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:12px;" data-k="backup_note"></div>
+  <div class="card no-view" style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:12px;" data-k="backup_note"></div>
   <div class="shdr"><span class="shdr-t" data-k="privacy_title"></span></div>
   <div class="card">
     <button class="mbtn" style="background:var(--bg3);color:var(--text);border:1px solid var(--border2);box-shadow:none;" onclick="openModal('privacy-modal')"><span data-k="privacy_view_btn"></span></button>
-    <button class="mbtn" style="margin-top:8px;background:var(--red-dim);color:var(--red);border:1px solid rgba(255,84,112,.35);box-shadow:none;" onclick="deleteAllData()"><span data-k="delete_all_btn"></span></button>
+    <button class="mbtn no-view" style="margin-top:8px;background:var(--red-dim);color:var(--red);border:1px solid rgba(255,84,112,.35);box-shadow:none;" onclick="deleteAllData()"><span data-k="delete_all_btn"></span></button>
   </div>
   <div class="shdr"><span class="shdr-t" data-k="about_pwa"></span></div>
   <div class="card" style="font-size:12px;color:var(--text2);line-height:1.7;" data-k="pwa_instructions"></div>
@@ -857,6 +882,12 @@ en:{
   no_key_msg:'No API key set. Add your Anthropic API key in Settings → Claude access to enable Ask Claude.',
   language:'Language', about_pwa:'Install as app',
   pwa_instructions:'In Safari → tap Share → "Add to Home Screen" → Add. Opens full-screen like a native app.',
+  share_coach_title:'Share with coach', share_coach_btn:'Share with coach', stop_sharing_btn:'Stop sharing',
+  share_coach_note:'Generates a live link. Anyone who opens it sees your data update in real time — they can change the language, nothing else. Stop sharing at any time to disable the link.',
+  coach_banner:'👀 Read-only shared view — data updates live',
+  coach_connecting:'Connecting to shared data…',
+  share_unavailable_msg:"This shared view isn't available. The link may not have been activated yet, sharing may have been stopped, or the connection dropped.",
+  retry_btn:'Retry',
   data_backup:'Data backup', export_btn:'Export JSON', import_btn:'Import JSON',
   backup_note:'Export your data regularly. localStorage is cleared if you reset Safari — a backup JSON keeps your history safe.',
   tab_today:'Today', tab_week:'Week', tab_progress:'Progress', tab_plan:'Plan', tab_settings:'More',
@@ -941,6 +972,12 @@ es:{
   no_key_msg:'Sin clave API. Añade tu clave de Anthropic en Ajustes → Acceso a Claude para activar Preguntar a Claude.',
   language:'Idioma', about_pwa:'Instalar como app',
   pwa_instructions:'En Safari → Compartir → "Agregar a pantalla de inicio" → Agregar. Se abre a pantalla completa como app nativa.',
+  share_coach_title:'Compartir con el coach', share_coach_btn:'Compartir con el coach', stop_sharing_btn:'Dejar de compartir',
+  share_coach_note:'Genera un enlace en vivo. Quien lo abra verá tus datos actualizarse en tiempo real — puede cambiar el idioma, nada más. Puedes dejar de compartir cuando quieras para desactivar el enlace.',
+  coach_banner:'👀 Vista compartida de solo lectura — datos en vivo',
+  coach_connecting:'Conectando con los datos compartidos…',
+  share_unavailable_msg:'Esta vista compartida no está disponible. Puede que el enlace aún no se haya activado, que se haya dejado de compartir, o que se haya perdido la conexión.',
+  retry_btn:'Reintentar',
   data_backup:'Copia de seguridad', export_btn:'Exportar JSON', import_btn:'Importar JSON',
   backup_note:'Exporta tus datos regularmente. Si Safari limpia datos del sitio perderás tu historial — el JSON lo protege.',
   tab_today:'Hoy', tab_week:'Semana', tab_progress:'Progreso', tab_plan:'Plan', tab_settings:'Más',
@@ -1166,6 +1203,7 @@ function loadPlan() {
   applyPlan();
 }
 function savePlan(p) {
+  if (VIEW_ONLY) return;
   PLAN = p;
   localStorage.setItem('lt_plan', JSON.stringify(p));
   // personal targets come from the plan, not from app defaults
@@ -1179,6 +1217,7 @@ function savePlan(p) {
   }
   localStorage.setItem('lt_settings', JSON.stringify(settings));
   applyPlan();
+  scheduleShareSync();
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -1267,7 +1306,32 @@ let apiKey = localStorage.getItem('lt_apikey') || '';
 let reminder = JSON.parse(localStorage.getItem('lt_reminder') || '{"on":false,"time":"20:00","lastNotified":null}');
 let lang = localStorage.getItem('lt_lang') || 'en';
 
-function persist() { localStorage.setItem('lt_db', JSON.stringify(DB)); }
+// ─────────────────────────────────────────────────────────────────
+// COACH SHARE MODE
+// A URL of the form index.html?share=<uid> puts the app in a fully
+// read-only mode that mirrors a remote owner's data (via Firebase,
+// see the module script at the bottom of the file) instead of this
+// browser's own localStorage. Every mutating function below is
+// guarded with `if (VIEW_ONLY) return;` so nothing a viewer does can
+// change data — except the language toggle, which never touches
+// Firebase and is left completely unguarded on purpose.
+// ─────────────────────────────────────────────────────────────────
+const __shareParam = new URLSearchParams(location.search).get('share');
+const VIEW_ONLY = !!__shareParam;
+const SHARE_UID = __shareParam || null;
+window.VIEW_ONLY = VIEW_ONLY; window.SHARE_UID = SHARE_UID;
+
+function persist() { if (VIEW_ONLY) return; localStorage.setItem('lt_db', JSON.stringify(DB)); scheduleShareSync(); }
+
+// Debounced push of {settings, plan, db} to Firestore, only while this
+// device has sharing enabled. A no-op until the owner taps "Share with
+// Coach" (or a prior session had it on), and always a no-op in VIEW_ONLY.
+let _shareSyncT = null;
+function scheduleShareSync() {
+  if (VIEW_ONLY || !window.LTFirebase || !window.LTFirebase.sharingUid) return;
+  clearTimeout(_shareSyncT);
+  _shareSyncT = setTimeout(() => window.LTFirebase.pushShare({settings, plan: PLAN, db: DB}), 800);
+}
 
 function getDay(dk) {
   if (!DB[dk]) DB[dk] = {habits:{},cal:null,training:'',weight:null,waist:null,belt:null,meals:{},lifts:{},selfChoice:0};
@@ -1616,6 +1680,7 @@ function renderMeals(dk, plan, tCal) {
 }
 
 function toggleMeal(dk, i, el) {
+  if (VIEW_ONLY) return;
   const day = getDay(dk);
   const turningOn = !day.meals[i];
   if (turningOn) day.meals[i] = 1; else delete day.meals[i];
@@ -1683,6 +1748,7 @@ function renderSelfChoice(dk) {
 }
 
 function bumpSelfChoice(delta) {
+  if (VIEW_ONLY) return;
   const dk = selKey();
   const day = getDay(dk);
   day.selfChoice = Math.max(0, (day.selfChoice || 0) + delta);
@@ -1720,6 +1786,7 @@ function renderWorkout(dk, plan) {
 }
 
 function toggleLift(dk, i, el) {
+  if (VIEW_ONLY) return;
   const day = getDay(dk);
   const turningOn = !day.lifts[i];
   if (turningOn) day.lifts[i] = 1; else delete day.lifts[i];
@@ -1736,6 +1803,7 @@ function toggleLift(dk, i, el) {
 }
 
 function setHabit(btn, kind) {
+  if (VIEW_ONLY) return;
   const wrap = btn.parentElement;
   const dk  = wrap.getAttribute('data-dk');
   const key = wrap.getAttribute('data-key');
@@ -1774,6 +1842,7 @@ function refreshScore(dk) {
 }
 
 function onCalInput(val, tCal) {
+  if (VIEW_ONLY) return;
   const dk  = selKey();
   const day = getDay(dk);
   const n   = val ? parseInt(val) : null;
@@ -1787,6 +1856,7 @@ function onCalInput(val, tCal) {
 }
 
 function saveTodayField(field, val) {
+  if (VIEW_ONLY) return;
   const day = getDay(selKey());
   day[field] = val;
   persist();
@@ -1921,6 +1991,7 @@ function renderWeek() {
 }
 
 function toggleRun(dk, el) {
+  if (VIEW_ONLY) return;
   const day = getDay(dk);
   const turningOn = !day.runDone;
   day.runDone = turningOn ? 1 : 0;
@@ -2559,6 +2630,7 @@ function renderCal() {
 }
 
 function saveBodyEntry() {
+  if (VIEW_ONLY) return;
   const w  = parseFloat(document.getElementById('bm-w').value);
   const wa = parseFloat(document.getElementById('bm-wa').value);
   const belt = parseFloat(document.getElementById('bm-belt').value);
@@ -2752,6 +2824,7 @@ function goalContext() {
 }
 
 async function askClaude() {
+  if (VIEW_ONLY) return;
   const q = document.getElementById('custom-q').value.trim();
   if (!q) return;
 
@@ -2891,6 +2964,7 @@ function previewPlan(pl) {
   openModal('plan-modal');
 }
 function confirmPlan() {
+  if (VIEW_ONLY) return;
   if (!_pendingPlan) return;
   savePlan(_pendingPlan);
   _pendingPlan = null;
@@ -2902,6 +2976,7 @@ function confirmPlan() {
 }
 
 function importPlanFile(input) {
+  if (VIEW_ONLY) return;
   const file = input.files[0];
   if (!file) return;
   const reader = new FileReader();
@@ -2918,6 +2993,7 @@ function importPlanFile(input) {
 }
 
 function exportPlan() {
+  if (VIEW_ONLY) return;
   if (!PLAN) { alert(t('plan_none')); return; }
   const blob = new Blob([JSON.stringify(PLAN, null, 2)], {type: 'application/json'});
   const url = URL.createObjectURL(blob);
@@ -2929,6 +3005,7 @@ function exportPlan() {
 }
 
 function resetPlan() {
+  if (VIEW_ONLY) return;
   if (!PLAN) return;
   if (!confirm(t('reset_q'))) return;
   localStorage.removeItem('lt_plan');
@@ -2937,6 +3014,7 @@ function resetPlan() {
   renderActive();
   renderSettingsForm();
   toast(t('plan_removed'));
+  scheduleShareSync();
 }
 
 // ── Generate with Claude — questionnaire + tracked-data digest →
@@ -2992,6 +3070,7 @@ function trackingDigest() {
 }
 
 function openGenModal() {
+  if (VIEW_ONLY) return;
   const ds = L[lang].dshort;
   document.getElementById('g-office').innerHTML = ds.map((d, i) =>
     '<div class="dchip' + ([2, 3, 4].includes(i) ? ' sel' : '') + '" data-d="' + i + '" ' +
@@ -3004,6 +3083,7 @@ function openGenModal() {
 }
 
 async function genPlan() {
+  if (VIEW_ONLY) return;
   const box = document.getElementById('gen-box');
   box.className = 'ai-box on';
   if (!apiKey) { box.innerHTML = '<span style="color:var(--amber);">' + t('no_key_msg') + '</span>'; return; }
@@ -3093,6 +3173,7 @@ function renderSettingsForm() {
 }
 
 function saveSettings() {
+  if (VIEW_ONLY) return;
   settings.calMin     = parseInt(document.getElementById('s-calmin').value)   || 1800;
   settings.calMax     = parseInt(document.getElementById('s-calmax').value)   || 2200;
   settings.protein    = parseInt(document.getElementById('s-prot').value)     || 120;
@@ -3106,12 +3187,48 @@ function saveSettings() {
   localStorage.setItem('lt_settings', JSON.stringify(settings));
   viewWn = Math.max(todayWn(), 1);
   alert(lang === 'en' ? '✓ Settings saved' : '✓ Ajustes guardados');
+  scheduleShareSync();
 }
 
 function saveApiKey() {
+  if (VIEW_ONLY) return;
   apiKey = document.getElementById('s-apikey').value.trim();
   localStorage.setItem('lt_apikey', apiKey);
   alert(lang === 'en' ? (apiKey ? '✓ API key saved' : 'API key cleared') : (apiKey ? '✓ Clave guardada' : 'Clave eliminada'));
+}
+
+// ─────────────────────────────────────────────────────────────────
+// SHARE WITH COACH — a live, read-only link (see the Firebase module
+// script at the end of the file for the sync/subscribe implementation)
+// ─────────────────────────────────────────────────────────────────
+async function shareWithCoach() {
+  if (VIEW_ONLY) return;
+  if (!window.LTFirebase) { alert(t('share_unavailable_msg')); return; }
+  let uid;
+  try {
+    uid = await window.LTFirebase.enableSharing({settings, plan: PLAN, db: DB});
+  } catch (e) {
+    alert(t('share_unavailable_msg'));
+    return;
+  }
+  const url = location.origin + location.pathname + '?share=' + uid;
+  if (navigator.share) {
+    try { await navigator.share({ url, title: 'LeanTracker' }); return; }
+    catch (e) { /* user cancelled the share sheet — fall back to clipboard */ }
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    toast(lang === 'en' ? 'Link copied!' : '¡Enlace copiado!');
+  } catch (e) {
+    prompt(lang === 'en' ? 'Copy this link:' : 'Copia este enlace:', url);
+  }
+}
+
+async function stopSharing() {
+  if (VIEW_ONLY) return;
+  if (!window.LTFirebase) return;
+  await window.LTFirebase.stopSharing();
+  toast(lang === 'en' ? 'Sharing stopped' : 'Se dejó de compartir');
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -3121,6 +3238,7 @@ function saveApiKey() {
 // (server-side), which is out of scope for this client-only build.
 // ─────────────────────────────────────────────────────────────────
 async function toggleReminder(on) {
+  if (VIEW_ONLY) return;
   if (on) {
     if (!('Notification' in window)) {
       alert(t('reminder_unsupported'));
@@ -3141,6 +3259,7 @@ async function toggleReminder(on) {
 }
 
 function saveReminderTime(val) {
+  if (VIEW_ONLY) return;
   reminder.time = val;
   localStorage.setItem('lt_reminder', JSON.stringify(reminder));
 }
@@ -3163,6 +3282,7 @@ function checkReminder() {
 // EXPORT / IMPORT
 // ─────────────────────────────────────────────────────────────────
 function exportData() {
+  if (VIEW_ONLY) return;
   const blob = new Blob([JSON.stringify({version:4, exportedAt:new Date().toISOString(), settings, plan:PLAN, db:DB}, null, 2)], {type:'application/json'});
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
@@ -3173,6 +3293,7 @@ function exportData() {
 }
 
 function importData(input) {
+  if (VIEW_ONLY) return;
   const file = input.files[0];
   if (!file) return;
   const reader = new FileReader();
@@ -3184,6 +3305,7 @@ function importData(input) {
       if (data.plan)     { savePlan(normalizePlan(data.plan)); }
       alert(lang === 'en' ? '✓ Data imported' : '✓ Datos importados');
       renderActive();
+      scheduleShareSync();
     } catch { alert(lang === 'en' ? 'Invalid file.' : 'Archivo inválido.'); }
   };
   reader.readAsText(file);
@@ -3191,6 +3313,7 @@ function importData(input) {
 }
 
 function deleteAllData() {
+  if (VIEW_ONLY) return;
   if (!confirm(t('delete_all_q'))) return;
   ['lt_db', 'lt_plan', 'lt_settings', 'lt_apikey', 'lt_reminder'].forEach(k => localStorage.removeItem(k));
   DB = {};
@@ -3207,15 +3330,50 @@ function deleteAllData() {
 // ─────────────────────────────────────────────────────────────────
 // BOOT
 // ─────────────────────────────────────────────────────────────────
-loadPlan();               // hydrate the stored plan (auto-migrates existing installs)
-seedHistory();            // no-op if DB already exists in localStorage
-// Belt-level waist tracking: target notch 5.3 ≈ goal weight; current 3.8.
-if (settings.beltTarget == null) { settings.beltTarget = 5.3; localStorage.setItem('lt_settings', JSON.stringify(settings)); }
-if (latestBelt() == null) { getDay(todayKey()).belt = 3.8; persist(); }
-viewWn = todayWn();  // week view starts on current program week (can be ≤0 before W1)
-applyI18n();
-renderToday();
-checkReminder();
+if (VIEW_ONLY) {
+  // Coach view: nothing loads from localStorage. Wait for the first
+  // Firestore snapshot (see __ltApplyRemoteSnapshot below and the
+  // module script at the end of the file) before rendering anything.
+  // Safe empty defaults in case a resume/visibility event fires before
+  // that first snapshot arrives — never leave DB/PLAN null for getDay().
+  DB = DB || {}; PLAN = PLAN || null;
+  document.body.classList.add('view-only');
+  const bootSub = document.querySelector('#boot .boot-sub');
+  if (bootSub) bootSub.textContent = t('coach_connecting');
+  applyI18n();
+} else {
+  loadPlan();               // hydrate the stored plan (auto-migrates existing installs)
+  seedHistory();            // no-op if DB already exists in localStorage
+  // Belt-level waist tracking: target notch 5.3 ≈ goal weight; current 3.8.
+  if (settings.beltTarget == null) { settings.beltTarget = 5.3; localStorage.setItem('lt_settings', JSON.stringify(settings)); }
+  if (latestBelt() == null) { getDay(todayKey()).belt = 3.8; persist(); }
+  viewWn = todayWn();  // week view starts on current program week (can be ≤0 before W1)
+  applyI18n();
+  renderToday();
+  checkReminder();
+}
+
+// Called by the Firebase module script once the coach's live snapshot
+// arrives (or updates). Feeds the exact same render functions the
+// owner's own view uses — no separate read-only view layer needed.
+function __ltApplyRemoteSnapshot(remote) {
+  DB = remote.db || {};
+  settings = remote.settings || settings;
+  PLAN = remote.plan || null;
+  applyPlan();
+  viewWn = todayWn();
+  const b = document.getElementById('boot');
+  if (b) { b.classList.add('done'); setTimeout(() => b.remove(), 500); }
+  renderActive();
+}
+// Called by the module script if the shared doc doesn't exist (never
+// shared / sharing was stopped) or Firestore couldn't be reached.
+function __ltShareUnavailable() {
+  const el = document.getElementById('share-unavailable');
+  if (el) el.style.display = 'flex';
+  const b = document.getElementById('boot');
+  if (b) b.remove();
+}
 
 // ── Day-rollover / resume handling: a PWA restored from memory keeps
 // running with the old date — re-anchor "today" whenever we wake up.
@@ -3239,11 +3397,119 @@ document.getElementById('version-tag').textContent = 'LEANTRACKER ' + APP_VERSIO
 document.getElementById('cal-btn').innerHTML = cicon('calendar', 13);
 document.getElementById('share-btn').innerHTML = cicon('share', 14);
 
-// dismiss the boot sequence once the first paint is in
-setTimeout(() => {
-  const b = document.getElementById('boot');
-  if (b) { b.classList.add('done'); setTimeout(() => b.remove(), 500); }
-}, 950);
+// dismiss the boot sequence once the first paint is in — in VIEW_ONLY
+// mode this is instead handled by __ltApplyRemoteSnapshot/
+// __ltShareUnavailable once we know whether there's anything to show.
+if (!VIEW_ONLY) {
+  setTimeout(() => {
+    const b = document.getElementById('boot');
+    if (b) { b.classList.add('done'); setTimeout(() => b.remove(), 500); }
+  }, 950);
+}
+</script>
+
+<!-- ─────────────────────────────────────────────────────────────────
+     FIREBASE SYNC (coach share feature)
+     Module scripts run after the classic script above has finished,
+     so window.VIEW_ONLY / window.SHARE_UID and every function this
+     module calls into are already defined by the time this runs.
+     ───────────────────────────────────────────────────────────────── -->
+<script type="module" async>
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import {
+  getAuth, signInAnonymously, onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import {
+  getFirestore, doc, setDoc, deleteDoc, onSnapshot, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+// Not a secret — see firestore.rules for the actual access control.
+const firebaseConfig = {
+  apiKey: "AIzaSyA7YJpHI-2IJtHcQFHsxltPJlXJV8xinKE",
+  authDomain: "leantracker-e28e7.firebaseapp.com",
+  projectId: "leantracker-e28e7",
+  storageBucket: "leantracker-e28e7.firebasestorage.app",
+  messagingSenderId: "770166660777",
+  appId: "1:770166660777:web:2aa511584b68750e2653b8"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const dbFs = getFirestore(app);
+
+let _authReady = null;
+function ensureAuth() {
+  if (!_authReady) {
+    _authReady = new Promise((resolve, reject) => {
+      const unsub = onAuthStateChanged(auth, user => {
+        if (user) { unsub(); resolve(user); }
+      }, reject);
+      signInAnonymously(auth).catch(reject);
+    });
+  }
+  return _authReady;
+}
+
+const LTFirebase = { sharingUid: null };
+
+// Owner: start (or resume) sharing. Returns the uid to build the link with.
+LTFirebase.enableSharing = async function (payload) {
+  const user = await ensureAuth();
+  LTFirebase.sharingUid = user.uid;
+  localStorage.setItem('lt_sharing', '1');
+  await setDoc(doc(dbFs, 'shares', user.uid), {
+    settings: payload.settings, plan: payload.plan, db: payload.db,
+    updatedAt: serverTimestamp()
+  });
+  return user.uid;
+};
+
+// Owner: debounced push after local edits (see scheduleShareSync in the
+// classic script) — silently ignored if sharing was never enabled.
+LTFirebase.pushShare = async function (payload) {
+  if (!LTFirebase.sharingUid) return;
+  try {
+    await setDoc(doc(dbFs, 'shares', LTFirebase.sharingUid), {
+      settings: payload.settings, plan: payload.plan, db: payload.db,
+      updatedAt: serverTimestamp()
+    });
+  } catch (e) { /* best-effort — the local copy is always the source of truth */ }
+};
+
+// Owner: revoke the link. Any open coach tab flips to the unavailable
+// panel live, since its onSnapshot fires again on delete.
+LTFirebase.stopSharing = async function () {
+  localStorage.removeItem('lt_sharing');
+  if (!LTFirebase.sharingUid) return;
+  try { await deleteDoc(doc(dbFs, 'shares', LTFirebase.sharingUid)); } catch (e) {}
+  LTFirebase.sharingUid = null;
+};
+
+// Owner: silently resume syncing on a later app load if sharing was on.
+LTFirebase.resumeSharingIfEnabled = async function () {
+  if (localStorage.getItem('lt_sharing') !== '1') return;
+  const user = await ensureAuth();
+  LTFirebase.sharingUid = user.uid;
+};
+
+// Coach: subscribe to the owner's doc and feed the classic script.
+LTFirebase.subscribeAsViewer = async function (uid) {
+  try {
+    await ensureAuth();
+  } catch (e) { window.__ltShareUnavailable(); return; }
+  onSnapshot(doc(dbFs, 'shares', uid), snap => {
+    if (!snap.exists()) { window.__ltShareUnavailable(); return; }
+    window.__ltApplyRemoteSnapshot(snap.data());
+  }, err => window.__ltShareUnavailable());
+};
+
+window.LTFirebase = LTFirebase;
+
+if (window.VIEW_ONLY) {
+  LTFirebase.subscribeAsViewer(window.SHARE_UID);
+} else {
+  LTFirebase.resumeSharingIfEnabled();
+}
 </script>
 </body>
 </html>
