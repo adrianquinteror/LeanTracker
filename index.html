@@ -468,7 +468,6 @@ body.view-only{padding-top:30px;}
 <div id="share-unavailable" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;position:fixed;inset:0;z-index:999;background:var(--bg);text-align:center;padding:0 32px;">
   <div class="disp grad-text" style="font-size:22px;letter-spacing:.14em;">LEANTRACKER</div>
   <div style="color:var(--text2);font-size:13px;line-height:1.6;max-width:320px;" data-k="share_unavailable_msg"></div>
-  <div id="share-unavailable-debug" style="color:var(--text3);font-size:10.5px;font-family:monospace;max-width:320px;word-break:break-word;"></div>
   <button class="mbtn" style="width:auto;padding:10px 22px;" onclick="location.reload()" data-k="retry_btn"></button>
 </div>
 
@@ -3213,16 +3212,12 @@ function saveApiKey() {
 // ─────────────────────────────────────────────────────────────────
 async function shareWithCoach() {
   if (VIEW_ONLY) return;
-  if (!window.LTFirebase) {
-    alert(t('share_unavailable_msg') + '\n\n[debug: Firebase script never loaded — check your connection or an ad/tracker blocker]');
-    return;
-  }
+  if (!window.LTFirebase) { alert(t('share_unavailable_msg')); return; }
   let uid;
   try {
     uid = await window.LTFirebase.enableSharing({settings, plan: PLAN, db: DB});
   } catch (e) {
-    console.error('shareWithCoach: enableSharing failed', e);
-    alert(t('share_unavailable_msg') + '\n\n[debug: ' + (e && (e.code || e.message) || e) + ']');
+    alert(t('share_unavailable_msg'));
     return;
   }
   // No navigator.share() here on purpose: iOS Safari requires it to fire
@@ -3403,12 +3398,9 @@ function __ltApplyRemoteSnapshot(remote) {
 }
 // Called by the module script if the shared doc doesn't exist (never
 // shared / sharing was stopped) or Firestore couldn't be reached.
-function __ltShareUnavailable(err) {
-  if (err) console.error('LeanTracker share view unavailable:', err);
+function __ltShareUnavailable() {
   const el = document.getElementById('share-unavailable');
   if (el) el.style.display = 'flex';
-  const dbg = document.getElementById('share-unavailable-debug');
-  if (dbg) dbg.textContent = err ? ('[debug: ' + (err.code || err.message || err) + ']') : '';
   const b = document.getElementById('boot');
   if (b) b.remove();
 }
@@ -3534,11 +3526,11 @@ LTFirebase.resumeSharingIfEnabled = async function () {
 LTFirebase.subscribeAsViewer = async function (uid) {
   try {
     await ensureAuth();
-  } catch (e) { window.__ltShareUnavailable(e); return; }
+  } catch (e) { window.__ltShareUnavailable(); return; }
   onSnapshot(doc(dbFs, 'shares', uid), snap => {
-    if (!snap.exists()) { window.__ltShareUnavailable({ code: 'not-found', message: 'no shared doc for this link' }); return; }
+    if (!snap.exists()) { window.__ltShareUnavailable(); return; }
     window.__ltApplyRemoteSnapshot(snap.data());
-  }, err => window.__ltShareUnavailable(err));
+  }, err => window.__ltShareUnavailable());
 };
 
 window.LTFirebase = LTFirebase;
