@@ -3446,7 +3446,8 @@ if (!VIEW_ONLY) {
 <script type="module" async>
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import {
-  getAuth, signInAnonymously, onAuthStateChanged
+  initializeAuth, signInAnonymously, onAuthStateChanged,
+  indexedDBLocalPersistence, browserLocalPersistence, inMemoryPersistence
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import {
   getFirestore, doc, setDoc, deleteDoc, onSnapshot, serverTimestamp
@@ -3463,7 +3464,14 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+// getAuth() defaults to IndexedDB-only persistence, which is unreliable
+// inside an iOS Home Screen web app — sign-in then fails there while
+// working fine on desktop. Spelling out the chain lets Firebase fall
+// back to localStorage (which still keeps the uid, so the share link
+// stays stable) and finally to memory rather than failing outright.
+const auth = initializeAuth(app, {
+  persistence: [indexedDBLocalPersistence, browserLocalPersistence, inMemoryPersistence]
+});
 const dbFs = getFirestore(app);
 
 let _authReady = null;
@@ -3474,7 +3482,9 @@ function ensureAuth() {
         if (user) { unsub(); resolve(user); }
       }, reject);
       signInAnonymously(auth).catch(reject);
-    });
+    // A failed attempt must not be cached, or every later retry replays
+    // the same rejection and the button can never recover.
+    }).catch(err => { _authReady = null; throw err; });
   }
   return _authReady;
 }
